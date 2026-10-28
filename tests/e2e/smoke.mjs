@@ -8,7 +8,9 @@ const { chromium } = require('playwright');
 
 const PORT = 8123;
 const server = await serve(PORT);
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+  args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+});
 const errors = [];
 let failures = 0;
 
@@ -57,8 +59,10 @@ try {
     check(true, `${g.id}: all ${g.max} levels playable`);
   }
 
-  // tracing: empty "Done" must not pass; filling the letter must pass
-  await page.evaluate(() => startGame(GAMES.find(x => x.id === 'trace')));
+  // tracing letters and numbers: empty "Done" must not pass; filling the glyph must pass
+  for (const id of ['trace', 'trace-numbers']) {
+  for (let level = 1; level <= 3; level++) {
+  await page.evaluate(([id, lv]) => { Store.game(id).level = lv; startGame(GAMES.find(x => x.id === id)); }, [id, level]);
   for (let r = 0; r < 3; r++) {
     await page.waitForSelector('.trace-draw');
     await page.waitForTimeout(400);
@@ -74,7 +78,9 @@ try {
     await page.waitForFunction(b => document.querySelectorAll('.dot.done').length > b || document.querySelector('#gift'), before, { timeout: 8000 });
   }
   await page.waitForSelector('#gift', { timeout: 8000 });
-  check(true, 'trace: rejects blank, accepts traced letter');
+  }
+  check(true, `${id}: rejects blank, accepts traced glyph (3 levels)`);
+  }
 
   // name spelling
   await page.evaluate(() => { Store.data.name = 'Ethan'; startGame(GAMES.find(x => x.id === 'my-name')); });
@@ -92,6 +98,18 @@ try {
   check(await page.isVisible('.sticker-book'), 'sticker book renders');
   await page.evaluate(() => showParent());
   check(await page.isVisible('table.prog'), 'parent dashboard renders');
+
+  // parent can set a game's level
+  await page.selectOption('select.lv[data-id="count"]', '3');
+  check(await page.evaluate(() => Store.game('count').level) === 3, 'parent can set level');
+
+  // letter-sound recording with a fake microphone; recording is then used in the game
+  await page.waitForSelector('#sound-studio .rec');
+  await page.click('#sound-studio .rec[data-l="S"]');
+  await page.waitForSelector('#sound-studio .del[data-l="S"]', { timeout: 8000 });
+  check(await page.evaluate(() => Phonics.has('S')), 'letter sound recorded and saved');
+  await page.reload();
+  check(await page.evaluate(async () => { await Phonics.ready; return Phonics.has('S'); }), 'recording survives reload');
 } catch (e) {
   check(false, `unexpected failure: ${e.message}`);
 } finally {

@@ -221,7 +221,7 @@ function startGame(def) {
     memo: {},
   };
   session = st;
-  s.querySelector('.speak-btn').addEventListener('click', () => Voice.say(st.lastPrompt));
+  s.querySelector('.speak-btn').addEventListener('click', () => speakSteps(st.lastPrompt));
   nextRound(st, true);
 }
 
@@ -237,9 +237,12 @@ function makeCtx(st, intro) {
     stage: st.stage,
     level: st.level,
     memo: st.memo,
+    def: st.def,
+    // text may be a string or an async function (e.g. one that plays a recorded letter sound)
     prompt(text) {
       st.lastPrompt = text;
-      Voice.say(intro ? `${st.def.intro} ${text}` : text);
+      if (intro) speakSteps(st.def.intro, text);
+      else speakSteps(text);
     },
     success(el, text) {
       Sound.correct();
@@ -276,7 +279,7 @@ function nextRound(st, intro = false) {
     </div>`;
   const promptEl = st.stage.querySelector('.prompt');
   q.onMount?.(promptEl, ctx);
-  ctx.prompt(q.say);
+  ctx.prompt(q.speak || q.say);
 
   let first = true;
   let solved = false;
@@ -404,6 +407,52 @@ function showStickers() {
 
 /* ---------- parents ---------- */
 
+function renderSoundStudio(el) {
+  const canRec = Phonics.canRecord();
+  const draw = () => {
+    el.innerHTML = `
+      <h2>🎙️ 字母音录音 Letter sounds</h2>
+      <p>NSW 学校用 synthetic phonics 教阅读，孩子需要听到每个字母<b>纯正的音</b>（例如 s 是 "sss"，不是 "es" 也不是 "suh"）。
+        设备自带的语音读不准单个音，所以最好由您为每个字母录一个音：点 <b>● 录</b>，看到"请说"后马上发音（约 1.5 秒）。
+        录音<b>只保存在这台设备上</b>，不会上传。</p>
+      <p class="muted">已录 <b>${Phonics.count()}</b> / 26 · 没录的字母先用设备语音的近似读音。建议按下面的顺序（学校常用的教学顺序）先录前 6 个。</p>
+      ${canRec ? '' : '<p class="warn">⚠️ 这个浏览器不支持录音，请用 iPad 上的 Safari 或 Chrome。</p>'}
+      <div class="studio">${PHONICS_GROUPS.flat().map(l => `
+        <div class="studio-item ${Phonics.has(l) ? 'done' : ''}">
+          <div class="studio-head"><b>${l.toLowerCase()}</b><span class="ipa">${PHONEMES[l].ipa}</span><span>${ALPHABET[l].e} ${ALPHABET[l].word}</span></div>
+          <small>${PHONEMES[l].tip}</small>
+          <div class="studio-btns">
+            <button class="btn btn-mini rec" data-l="${l}" ${canRec ? '' : 'disabled'}>● 录</button>
+            <button class="btn btn-mini play" data-l="${l}">▶ 听</button>
+            ${Phonics.has(l) ? `<button class="btn btn-mini del" data-l="${l}" aria-label="Delete">✕</button>` : ''}
+          </div>
+        </div>`).join('')}
+      </div>`;
+    el.querySelectorAll('.rec').forEach(btn => btn.addEventListener('click', async () => {
+      Voice.stop();
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        const blob = await Phonics.record(1600, () => { btn.textContent = '🔴 请说'; btn.classList.add('live'); });
+        await Phonics.save(btn.dataset.l, blob);
+        draw();
+        Phonics.play(btn.dataset.l);
+      } catch (e) {
+        alert(`无法录音：${e.message}\n请在浏览器设置里允许使用麦克风。`);
+        draw();
+      }
+    }));
+    el.querySelectorAll('.play').forEach(btn => btn.addEventListener('click', () =>
+      speakSteps(() => Phonics.play(btn.dataset.l), ALPHABET[btn.dataset.l].word)));
+    el.querySelectorAll('.del').forEach(btn => btn.addEventListener('click', async () => {
+      await Phonics.remove(btn.dataset.l);
+      draw();
+    }));
+  };
+  Phonics.ready.then(draw);
+}
+
+
 function showParentGate() {
   const a = rnd(3, 9);
   const b = rnd(3, 9);
@@ -445,7 +494,9 @@ function showParent() {
     const p = Store.data.games[g.id];
     const acc = p && p.total ? Math.round((p.correct / p.total) * 100) + '%' : '—';
     return `<tr><td>${g.emoji} ${g.title}<small>${g.zh}</small></td>
-      <td>${p ? p.level : 1}/${g.maxLevel}</td><td>${p ? p.played : 0}</td><td>${acc}</td></tr>`;
+      <td><select class="lv" data-id="${g.id}" aria-label="Level">${Array.from({ length: g.maxLevel }, (_, i) =>
+        `<option value="${i + 1}" ${(p ? p.level : 1) === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>/${g.maxLevel}</td>
+      <td>${p ? p.played : 0}</td><td>${acc}</td></tr>`;
   };
 
   const s = screen(`
@@ -461,7 +512,7 @@ function showParent() {
       <div class="week">${days.map(d => `
         <div class="day"><div class="bar" style="height:${(d.n / maxDay) * 100}%"><span>${d.n || ''}</span></div><small>${d.label}</small></div>`).join('')}
       </div>
-      <h3>每个游戏 Per game <small>（等级会根据表现自动升降 · levels adjust automatically）</small></h3>
+      <h3>每个游戏 Per game <small>（等级会根据表现自动升降，也可以手动调整 · levels adjust automatically or set them here）</small></h3>
       <table class="prog">
         <thead><tr><th>游戏</th><th>等级</th><th>次数</th><th>一次答对率</th></tr></thead>
         <tbody>
@@ -498,6 +549,8 @@ function showParent() {
       </div>
     </section>
 
+    <section class="panel" id="sound-studio"></section>
+
     <section class="panel tips">
       <h2>🎒 Kindy 入学准备清单</h2>
       <p>这些游戏覆盖了澳洲 Kindy / Prep 入学前常见的准备技能：</p>
@@ -523,6 +576,12 @@ function showParent() {
 
   on(s, '[data-back]', () => showHome());
   const save = () => Store.save();
+  s.querySelectorAll('select.lv').forEach(sel => sel.addEventListener('change', () => {
+    const def = GAMES.find(g => g.id === sel.dataset.id);
+    Store.game(def.id, def.maxLevel).level = +sel.value;
+    save();
+  }));
+  renderSoundStudio(s.querySelector('#sound-studio'));
   s.querySelector('#set-name').addEventListener('input', e => { Store.data.name = e.target.value.trim(); save(); });
   s.querySelector('#set-rounds').addEventListener('change', e => { set.rounds = +e.target.value; save(); });
   s.querySelector('#set-voice').addEventListener('change', e => { set.voice = e.target.checked; save(); });

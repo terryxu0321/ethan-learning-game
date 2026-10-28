@@ -91,7 +91,14 @@ const Voice = (() => {
     return voices[0] || null;
   }
 
-  function say(text, { queue = false } = {}) {
+  // Each new (non-queued) utterance starts a new "turn", which cancels any speakSteps() sequence still running.
+  let turn = 0;
+
+  function say(text, { queue = false, keepTurn = false } = {}) {
+    if (!keepTurn && !queue) {
+      turn++;
+      if (typeof Phonics !== 'undefined') Phonics.stop();
+    }
     if (!supported || !Store.data.settings.voice || !text) return Promise.resolve();
     if (!queue) speechSynthesis.cancel();
     return new Promise(resolve => {
@@ -120,7 +127,24 @@ const Voice = (() => {
   return {
     supported,
     say,
-    stop() { if (supported) speechSynthesis.cancel(); },
+    stop() {
+      turn++;
+      if (typeof Phonics !== 'undefined') Phonics.stop();
+      if (supported) speechSynthesis.cancel();
+    },
     list() { return voices; },
+    get turn() { return turn; },
+    nextTurn() { if (typeof Phonics !== 'undefined') Phonics.stop(); return ++turn; },
   };
 })();
+
+// Speak several steps in order. A step is text, or an async function (e.g. play a recorded sound).
+// Stops early if anything else starts speaking in the meantime.
+async function speakSteps(...steps) {
+  const my = Voice.nextTurn();
+  for (const step of steps) {
+    if (Voice.turn !== my) return;
+    if (typeof step === 'function') await step();
+    else if (step) await Voice.say(step, { keepTurn: true });
+  }
+}

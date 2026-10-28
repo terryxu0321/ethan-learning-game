@@ -11,7 +11,7 @@ const ALPHABET = {
   F: { word: 'fish', e: '🐟' },
   G: { word: 'grapes', e: '🍇' },
   H: { word: 'hat', e: '🎩' },
-  I: { word: 'ice cream', e: '🍦' },
+  I: { word: 'iguana', e: '🦎' },
   J: { word: 'juice', e: '🧃' },
   K: { word: 'key', e: '🔑' },
   L: { word: 'lion', e: '🦁' },
@@ -50,6 +50,48 @@ const FIRST_SOUND_WORDS = [
 ];
 
 // Common kindy "sight words" (high-frequency words), easiest first.
+// Letter sounds (phonemes) for synthetic phonics.
+//   tts: what the device voice says when there is no recording — only an approximation;
+//        a parent recording (Parents → Letter sounds) is much better.
+//   tip: how a grown-up should say the pure sound when recording (shown in the parent area).
+const PHONEMES = {
+  A: { tts: 'ah', ipa: '/æ/', tip: 'apple 开头的短音 /æ/，嘴张大，短促' },
+  B: { tts: 'buh', ipa: '/b/', tip: '双唇轻弹一下，短而轻，尽量不带 "uh"' },
+  C: { tts: 'kuh', ipa: '/k/', tip: 'cat 开头的 /k/，喉咙后部轻轻一弹，不带 "uh"' },
+  D: { tts: 'duh', ipa: '/d/', tip: '舌尖轻弹上牙龈，短促' },
+  E: { tts: 'eh', ipa: '/e/', tip: 'egg 开头的短音 /e/' },
+  F: { tts: 'fff', ipa: '/f/', tip: '上牙轻咬下唇吹气 fff，可以拉长' },
+  G: { tts: 'guh', ipa: '/g/', tip: 'goat 开头的 /g/，短促，不带 "uh"' },
+  H: { tts: 'huh', ipa: '/h/', tip: '像哈气 h，只有气流声' },
+  I: { tts: 'ih', ipa: '/ɪ/', tip: 'iguana / insect 开头的短音 /ɪ/' },
+  J: { tts: 'juh', ipa: '/dʒ/', tip: 'jam 开头的 /dʒ/，短促' },
+  K: { tts: 'kuh', ipa: '/k/', tip: '与 c 同音 /k/' },
+  L: { tts: 'lll', ipa: '/l/', tip: '舌尖顶上牙龈 lll，可以拉长' },
+  M: { tts: 'mmm', ipa: '/m/', tip: '闭嘴哼 mmm，可以拉长' },
+  N: { tts: 'nnn', ipa: '/n/', tip: '舌尖顶上牙龈哼 nnn，可以拉长' },
+  O: { tts: 'aw', ipa: '/ɒ/', tip: 'octopus / hot 里的短音 /ɒ/（澳洲口音）' },
+  P: { tts: 'puh', ipa: '/p/', tip: '双唇轻轻爆破送气，不出声带音' },
+  Q: { tts: 'kwuh', ipa: '/kw/', tip: 'qu 读 /kw/，如 queen' },
+  R: { tts: 'rrr', ipa: '/r/', tip: 'rrr 像小狗低吼，不要读成 "er"' },
+  S: { tts: 'sss', ipa: '/s/', tip: '像蛇一样 sss，可以拉长，不要说 "suh"' },
+  T: { tts: 'tuh', ipa: '/t/', tip: '舌尖轻弹，只有气流，不出声带音' },
+  U: { tts: 'uh', ipa: '/ʌ/', tip: 'umbrella / up 开头的短音' },
+  V: { tts: 'vvv', ipa: '/v/', tip: '上牙轻咬下唇震动 vvv' },
+  W: { tts: 'wuh', ipa: '/w/', tip: '嘴唇收圆再张开，短促' },
+  X: { tts: 'ks', ipa: '/ks/', tip: 'x 读 /ks/，如 fox 的结尾' },
+  Y: { tts: 'yuh', ipa: '/j/', tip: 'yo-yo 开头的 /j/，短促' },
+  Z: { tts: 'zzz', ipa: '/z/', tip: '像蜜蜂 zzz，可以拉长' },
+};
+
+// Typical synthetic-phonics teaching order (common practice, not an official NSW sequence —
+// adjust once the school's phonics program is known).
+const PHONICS_GROUPS = [
+  ['S', 'A', 'T', 'P', 'I', 'N'],
+  ['M', 'D', 'G', 'O', 'C', 'K'],
+  ['E', 'U', 'R', 'H', 'B', 'F', 'L'],
+  ['J', 'V', 'W', 'X', 'Y', 'Z', 'Q'],
+];
+
 const SIGHT_WORDS = [
   'I', 'a', 'the', 'and', 'see', 'go', 'is', 'to', 'my', 'me', 'we', 'can',
   'like', 'up', 'it', 'in', 'at', 'look', 'you', 'he', 'she', 'no', 'yes', 'mum', 'dad', 'big', 'am', 'on',

@@ -90,8 +90,40 @@ const ENGLISH_GAMES = [
         Sound.pop();
         showCard(`<div class="big-letter">${l}<span>${l.toLowerCase()}</span></div>
           <div class="big-emoji">${a.e}</div><div class="card-word">${a.word}</div>`);
-        Voice.say(a.note ? `${l}. ${a.note}` : `${l}. ${l} is for ${a.word}.`);
+        speakSteps(`${l}.`, `${l} says`, () => Phonics.play(l), a.note || `${l} is for ${a.word}.`);
       }));
+    },
+  },
+  {
+    id: 'letter-sounds',
+    title: 'Letter Sounds',
+    zh: '字母音（自然拼读）',
+    emoji: '👂',
+    color: 'yellow',
+    maxLevel: 3,
+    intro: 'Every letter makes a sound. Listen carefully!',
+    question(level) {
+      // new letters arrive in the usual phonics teaching order
+      const pool = PHONICS_GROUPS.slice(0, level === 3 ? PHONICS_GROUPS.length : level).flat();
+      const ans = pick(pool);
+      const word = ALPHABET[ans];
+      const listen = () => Phonics.play(ans);
+      return {
+        key: ans,
+        speak: () => speakSteps('Listen!', listen, 'Which letter makes this sound?'),
+        html: `<button class="ear-btn" aria-label="Listen again">👂</button>
+               <div class="prompt-text">Which letter makes this sound?</div>`,
+        style: 'letter',
+        choices: options(ans, pool, level === 1 ? 3 : 4).map(l => ({ html: l.toLowerCase(), value: l })),
+        answer: ans,
+        after: `${word.word}!`,
+        onMount(el) {
+          el.querySelector('.ear-btn').addEventListener('click', () => speakSteps(listen));
+        },
+        onCorrect(el) {
+          el.querySelector('.prompt-text').innerHTML = `<span class="hl">${ans.toLowerCase()}</span> ${word.e} ${word.word}`;
+        },
+      };
     },
   },
   {
@@ -240,7 +272,7 @@ const ENGLISH_GAMES = [
     maxLevel: 3,
     custom: true,
     intro: "Let's practise writing! Trace the letter with your finger.",
-    round: traceRound,
+    round: ctx => traceRound(ctx, 'letters'),
   },
   {
     id: 'my-name',
@@ -281,6 +313,17 @@ const MATH_GAMES = [
         Voice.say(n === 0 ? 'Zero. Nothing at all!' : `${n}. ${n} ${n === 1 ? item.one : item.many}.`);
       }));
     },
+  },
+  {
+    id: 'trace-numbers',
+    title: 'Write Numbers',
+    zh: '描写数字',
+    emoji: '✍️',
+    color: 'teal',
+    maxLevel: 3,
+    custom: true,
+    intro: "Let's write numbers! Trace with your finger.",
+    round: ctx => traceRound(ctx, 'numbers'),
   },
   {
     id: 'count',
@@ -556,23 +599,52 @@ function nameLetters() {
   return letters || 'Ethan';
 }
 
-function traceRound(ctx) {
-  const { stage, level } = ctx;
+// What to trace this round: a letter (level 1 = letters in his own name, 2 = any capital, 3 = lowercase)
+// or a number (level 1 = 1–5, 2 = 0–9, 3 = 10–20).
+function pickTraceTarget(kind, level, last) {
+  if (kind === 'numbers') {
+    const [min, max] = level === 1 ? [1, 5] : level === 2 ? [0, 9] : [10, 20];
+    const range = Array.from({ length: max - min + 1 }, (_, i) => String(min + i)).filter(n => n !== last);
+    const n = pick(range);
+    const item = pick(COUNT_ITEMS);
+    return {
+      key: n,
+      glyph: n,
+      lower: false,
+      hint: +n > 0 && +n <= 10 ? `${n} <span>${item.e.repeat(+n)}</span>` : `number ${n}`,
+      say: `Trace the number ${n}.`,
+      again: `Almost! Trace all of the ${n}.`,
+    };
+  }
   let L;
   if (level === 1) {
-    // start with the letters in his own name
     const own = [...new Set(nameLetters().toUpperCase().split(''))];
-    L = pick(own.length > 1 ? own.filter(l => l !== ctx.memo.last) : own);
+    L = pick(own.length > 1 ? own.filter(l => l !== last) : own);
   } else {
-    L = pick(LETTERS.filter(l => l !== ctx.memo.last));
+    L = pick(LETTERS.filter(l => l !== last));
   }
-  ctx.memo.last = L;
-  const glyph = level === 3 ? L.toLowerCase() : L;
   const word = ALPHABET[L];
+  const lower = level === 3;
+  const glyph = lower ? L.toLowerCase() : L;
+  return {
+    key: L,
+    glyph,
+    lower,
+    hint: `<span>${word.e}</span> ${glyph} is for ${word.word}`,
+    say: `Trace ${lower ? 'little' : 'big'} ${L}. ${L} is for ${word.word}.`,
+    again: `Almost! Trace all of the ${L}.`,
+  };
+}
+
+function traceRound(ctx, kind) {
+  const { stage, level } = ctx;
+  const target = pickTraceTarget(kind, level, ctx.memo.last);
+  ctx.memo.last = target.key;
+  const { glyph } = target;
 
   stage.innerHTML = `
     <div class="trace-wrap">
-      <div class="trace-hint"><span>${word.e}</span> ${glyph} is for ${word.word}</div>
+      <div class="trace-hint">${target.hint}</div>
       <div class="trace-box"><canvas class="trace-guide"></canvas><canvas class="trace-draw"></canvas></div>
       <div class="trace-btns">
         <button class="btn btn-ghost" data-act="clear">🧽 Clear</button>
@@ -580,8 +652,7 @@ function traceRound(ctx) {
       </div>
     </div>`;
 
-  const sayText = `Trace ${level === 3 ? 'little' : 'big'} ${L}. ${L} is for ${word.word}.`;
-  ctx.prompt(sayText);
+  ctx.prompt(target.say);
 
   const box = stage.querySelector('.trace-box');
   const guide = stage.querySelector('.trace-guide');
@@ -595,7 +666,7 @@ function traceRound(ctx) {
   });
   box.style.height = size + 'px';
 
-  const fontSize = size * (level === 3 ? 0.78 : 0.82);
+  const fontSize = size * (glyph.length > 1 ? 0.6 : target.lower ? 0.78 : 0.82);
   const font = `600 ${fontSize}px Fredoka, "Arial Rounded MT Bold", sans-serif`;
   const g = guide.getContext('2d');
   const d = draw.getContext('2d');
@@ -616,7 +687,7 @@ function traceRound(ctx) {
       c.textAlign = 'center';
       c.textBaseline = 'middle';
     });
-    const y = size * (level === 3 ? 0.46 : 0.54);
+    const y = size * (target.lower ? 0.46 : 0.54);
     g.fillStyle = '#eceff7';
     g.fillText(glyph, size / 2, y);
     g.setLineDash([6, 8]);
@@ -694,7 +765,7 @@ function traceRound(ctx) {
       box.classList.remove('shake');
       void box.offsetWidth;
       box.classList.add('shake');
-      Voice.say(spill >= 1.6 ? 'Try to stay on the grey letter!' : `Almost! Trace all of the ${L}.`);
+      Voice.say(spill >= 1.6 ? 'Try to stay on the grey line!' : target.again);
     }
   });
 }

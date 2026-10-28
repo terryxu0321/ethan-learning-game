@@ -467,3 +467,27 @@ input, select { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* ---------- parent: letter-sound recording ---------- */
+
+.muted { color: var(--ink-soft); }
+.studio { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 10px; }
+.studio-item { border: 2px solid #eef0f6; border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.studio-item.done { border-color: var(--green); background: #f2fcf5; }
+.studio-head { display: flex; align-items: baseline; gap: 8px; }
+.studio-head b { font-size: 30px; line-height: 1; }
+.studio-head .ipa { color: var(--purple-d); }
+.studio-item small { color: var(--ink-soft); font-size: 13px; line-height: 1.35; }
+.studio-btns { display: flex; gap: 8px; margin-top: 4px; }
+.btn-mini { font-size: 15px; padding: 6px 12px; box-shadow: 0 3px 0 #c9d6ea; border: 2px solid #eef0f6; }
+.btn-mini:active { transform: translateY(2px); box-shadow: 0 1px 0 #c9d6ea; }
+.btn-mini.rec { color: var(--red-d); }
+.btn-mini.live { background: var(--red); color: #fff; animation: pulse .8s infinite; }
+.prog select.lv { font-size: 15px; padding: 2px 4px; border-radius: 8px; border: 2px solid #dfe3ef; }
+
+/* listen-again button inside a prompt */
+.ear-btn {
+  font-size: 64px; width: 120px; height: 120px; border-radius: 50%; background: #fff4d6;
+  box-shadow: 0 6px 0 var(--yellow-d); animation: bob 2.4s ease-in-out infinite;
+}
+.ear-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--yellow-d); }
