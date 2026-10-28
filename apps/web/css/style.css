@@ -491,3 +491,17 @@ input, select { font-family: inherit; }
   box-shadow: 0 6px 0 var(--yellow-d); animation: bob 2.4s ease-in-out infinite;
 }
 .ear-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--yellow-d); }
+
+/* ---------- parent: teaching guide ---------- */
+
+.guide-link { background: none; padding: 0; font-size: 15px; text-align: left; color: var(--blue-d); }
+.guide-link span { font-size: 13px; }
+.focus-item { border-left: 5px solid var(--orange); background: #fff8ef; border-radius: 12px; padding: 10px 14px; margin-bottom: 10px; display: grid; gap: 4px; }
+.focus-item .btn-mini { justify-self: start; margin-top: 4px; }
+.card-pop.guide-pop { text-align: left; align-items: stretch; max-width: 640px; font-size: 16px; line-height: 1.5; user-select: text; -webkit-user-select: text; }
+.guide-pop h2 { margin: 0; font-size: 24px; }
+.guide-pop h2 small { font-size: 15px; color: var(--ink-soft); font-weight: 500; }
+.guide-pop h3 { margin: 10px 0 2px; font-size: 17px; }
+.guide-pop p, .guide-pop ul { margin: 0; }
+.guide-pop ul { padding-left: 20px; }
+.guide-pop .card-close { align-self: center; margin-top: 12px; }

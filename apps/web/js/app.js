@@ -60,11 +60,11 @@ function name() {
 
 /* ---------- popups & effects ---------- */
 
-function showCard(inner) {
+function showCard(inner, cls = '') {
   closeCard();
   const el = document.createElement('div');
   el.className = 'card-overlay';
-  el.innerHTML = `<div class="card-pop">${inner}<button class="btn btn-go card-close">OK 👍</button></div>`;
+  el.innerHTML = `<div class="card-pop ${cls}">${inner}<button class="btn btn-go card-close">OK 👍</button></div>`;
   el.addEventListener('click', e => {
     if (e.target === el || e.target.closest('.card-close')) closeCard();
   });
@@ -407,6 +407,45 @@ function showStickers() {
 
 /* ---------- parents ---------- */
 
+// Games where first-try accuracy is low, with the first teaching tip for each.
+function focusAreas() {
+  const weak = GAMES.filter(g => !g.free)
+    .map(g => ({ g, p: Store.data.games[g.id] }))
+    .filter(({ p }) => p && p.total >= 3 && p.correct / p.total < 0.7)
+    .sort((a, b) => a.p.correct / a.p.total - b.p.correct / b.p.total)
+    .slice(0, 3);
+  if (!weak.length) {
+    const played = GAMES.filter(g => Store.data.games[g.id]?.played).length;
+    return `<p class="muted">${played < 3
+      ? '还没有足够的游戏记录。多玩几次后，这里会列出一次答对率较低的游戏，以及您可以在家怎么教。'
+      : '目前没有明显的薄弱项 👍 点下面表格里任意游戏的 📖，可以看到它的教学目标和在家的练习方法。'}</p>`;
+  }
+  return weak.map(({ g, p }) => {
+    const guide = GUIDE[g.id];
+    return `<div class="focus-item">
+      <div><b>${g.emoji} ${g.title}</b> · ${g.zh} · 一次答对率 <b>${Math.round((p.correct / p.total) * 100)}%</b></div>
+      <div>🎯 ${guide.goal}</div>
+      <div>👨‍👩‍👦 试试：${guide.teach[0]}</div>
+      <button class="btn btn-mini" data-guide="${g.id}">📖 完整教学指南</button>
+    </div>`;
+  }).join('');
+}
+
+function showGuide(id) {
+  const g = GAMES.find(x => x.id === id);
+  const guide = GUIDE[id];
+  const list = items => `<ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
+  showCard(`
+    <h2>${g.emoji} ${g.title} <small>${g.zh}</small></h2>
+    <h3>🎯 学习目标</h3><p>${guide.goal}</p>
+    <h3>📚 对应技能</h3>${list(guide.skills.map(k => `${k} · ${SKILLS[k]}`))}
+    <h3>🪜 等级</h3>${list(guide.levels)}
+    <h3>👨‍👩‍👦 家长怎么教</h3>${list(guide.teach)}
+    <h3>🏠 生活中练习</h3>${list(guide.everyday)}
+    <h3>✅ 达标表现</h3><p>${guide.mastered}</p>
+    <h3>💡 常见困难</h3><p>${guide.watch}</p>`, 'guide-pop');
+}
+
 function renderSoundStudio(el) {
   const canRec = Phonics.canRecord();
   const draw = () => {
@@ -490,10 +529,11 @@ function showParent() {
   const totalPlays = Object.values(Store.data.games).reduce((t, g) => t + g.played, 0);
 
   const row = g => {
-    if (g.free) return '';
+    const name = `<td><button class="guide-link" data-guide="${g.id}">${g.emoji} ${g.title} <span>📖</span></button><small>${g.zh}</small></td>`;
+    if (g.free) return `<tr>${name}<td colspan="3" class="muted">自由玩 · free play</td></tr>`;
     const p = Store.data.games[g.id];
     const acc = p && p.total ? Math.round((p.correct / p.total) * 100) + '%' : '—';
-    return `<tr><td>${g.emoji} ${g.title}<small>${g.zh}</small></td>
+    return `<tr>${name}
       <td><select class="lv" data-id="${g.id}" aria-label="Level">${Array.from({ length: g.maxLevel }, (_, i) =>
         `<option value="${i + 1}" ${(p ? p.level : 1) === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>/${g.maxLevel}</td>
       <td>${p ? p.played : 0}</td><td>${acc}</td></tr>`;
@@ -501,6 +541,11 @@ function showParent() {
 
   const s = screen(`
     ${topbar('🏠', 'Parents 家长')}
+    <section class="panel focus">
+      <h2>🎯 需要加强 Focus areas</h2>
+      ${focusAreas()}
+    </section>
+
     <section class="panel">
       <h2>📈 学习进度 Progress</h2>
       <div class="stats">
@@ -582,6 +627,7 @@ function showParent() {
     save();
   }));
   renderSoundStudio(s.querySelector('#sound-studio'));
+  s.querySelectorAll('[data-guide]').forEach(btn => btn.addEventListener('click', () => showGuide(btn.dataset.guide)));
   s.querySelector('#set-name').addEventListener('input', e => { Store.data.name = e.target.value.trim(); save(); });
   s.querySelector('#set-rounds').addEventListener('change', e => { set.rounds = +e.target.value; save(); });
   s.querySelector('#set-voice').addEventListener('change', e => { set.voice = e.target.checked; save(); });

@@ -99,6 +99,13 @@ try {
   await page.evaluate(() => showParent());
   check(await page.isVisible('table.prog'), 'parent dashboard renders');
 
+  // every game has a teaching guide, and it opens from the dashboard
+  const noGuide = await page.evaluate(() => GAMES.filter(g => !GUIDE[g.id] || GUIDE[g.id].skills.some(k => !SKILLS[k])).map(g => g.id));
+  check(noGuide.length === 0, `every game has a parent guide${noGuide.length ? ' (missing: ' + noGuide.join(', ') + ')' : ''}`);
+  await page.click('[data-guide="letter-sounds"]');
+  check(await page.isVisible('.guide-pop'), 'parent guide opens');
+  await page.click('.card-close');
+
   // parent can set a game's level
   await page.selectOption('select.lv[data-id="count"]', '3');
   check(await page.evaluate(() => Store.game('count').level) === 3, 'parent can set level');

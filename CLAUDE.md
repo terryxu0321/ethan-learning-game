@@ -8,6 +8,7 @@ This repo is a company OS: product code + product/curriculum/AI/company docs. Re
   - Word/picture banks: `apps/web/js/data.js`. Engine & screens: `apps/web/js/app.js`.
 - Requirements: `product/prd/`. New feature specs: `product/specs/` (copy `_template.md`).
 - Learning objectives: `curriculum/scope-and-sequence.md` — every new game must map to a row there.
+- Parent teaching guide: `apps/web/js/guide.js` — every game needs an entry (goal, skills, how to teach); run `npm run docs` to regenerate `curriculum/parent-guide.md`. The smoke test fails if a game has no guide.
 - Technical decisions: `engineering/adr/NNNN-title.md`.
 - AI prompts / evals / experiments: `ai/`.
 - Market research: `research/<NN-topic>/` with `findings.md`, `sources.md`, `raw/`.
@@ -17,11 +18,13 @@ This repo is a company OS: product code + product/curriculum/AI/company docs. Re
 2. **Child safety**: no ads, external links, purchases, or open-ended chat in the child UI. Any LLM/generative output shown to a child must go through the guardrails in `ai/safety/`.
 3. **Content licensing**: only self-made, CC0, or explicitly licensed assets. No trademarked characters (Bluey, Paw Patrol, Pokémon…). Research `raw/` folders only hold material whose license permits redistribution.
 4. **Kid UX**: every prompt is spoken (non-readers); touch targets ≥ 60px; wrong answers get gentle retry, never penalties.
-5. Keep the root `index.html` redirect working — it preserves the public URL and iPad home-screen shortcuts.
+5. The repo is public: never commit identifying details about the child (school names, photos, recordings, full name). Letter-sound recordings live only in the device's IndexedDB.
+6. Keep the root `index.html` redirect working — it preserves the public URL and iPad home-screen shortcuts.
 
 ## Commands
 - `npm start` — serve locally on :8000
 - `npm test` — Playwright smoke test (plays every game at every level). Run before pushing.
+- `npm run docs` — regenerate `curriculum/parent-guide.md` from `guide.js`.
 
 ## Conventions
 - Docs in Simplified Chinese (keep product/tech terms in English); code, comments, commits in English; child-facing UI in English.

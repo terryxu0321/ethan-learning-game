@@ -9,8 +9,10 @@
 | `css/style.css` | 样式与动画（颜色变量在 `:root`） |
 | `js/store.js` | 本地进度存储（localStorage，key: `ethan-learning-game-v1`） |
 | `js/audio.js` | 音效（Web Audio 合成）+ 语音朗读（Web Speech API，优先澳洲口音） |
-| `js/data.js` | 字母、单词、押韵、贴纸等内容库 |
-| `js/games.js` | 16 个小游戏的出题逻辑 |
+| `js/data.js` | 字母、单词、字母音（PHONEMES）、phonics 分组、押韵、贴纸等内容库 |
+| `js/phonics.js` | 字母音播放与家长录音（IndexedDB，只存在设备上） |
+| `js/games.js` | 18 个小游戏的出题逻辑 |
+| `js/guide.js` | 每个游戏的家长教学指南（学习目标、教法） |
 | `js/app.js` | 页面切换、游戏引擎、奖励、贴纸册、家长页 |
 
 ## 新增一个游戏
@@ -28,4 +30,4 @@
 }
 ```
 
-然后在 `curriculum/scope-and-sequence.md` 里登记它对应的学习目标，并运行 `npm test`。
+然后：在 `js/guide.js` 里加教学指南 → 在 `curriculum/scope-and-sequence.md` 登记技能 → `npm run docs` → `npm test`。
