@@ -18,4 +18,4 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm test
       - name: Parent guide is up to date
-        run: npm run docs && git diff --exit-code curriculum/parent-guide.md
+        run: npm run docs && git diff --exit-code curriculum/

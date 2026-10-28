@@ -9,6 +9,9 @@ const Store = {
       stickers: [],
       games: {},
       days: {},
+      daily: {},     // day → { rounds, ok, ms }
+      items: {},     // gameId → item key → { n, ok, box, last, label } (see learner.js)
+      readiness: {}, // checklist row id → level 0–3
       settings: { voice: true, sfx: true, rate: 0.9, voiceURI: '', rounds: 5 },
     };
   },

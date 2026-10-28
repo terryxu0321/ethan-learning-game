@@ -43,6 +43,9 @@ function numberOptions(ans, n, min, max, extra = []) {
   return shuffle([ans, ...out]);
 }
 
+const picChoice = o => ({ html: `<span class="pic">${o.e}</span><span class="cap">${o.t}</span>`, value: o.t, say: o.t });
+const orList = items => `${items.slice(0, -1).join(', ')}, or ${items[items.length - 1]}`;
+
 const emojiRow = (e, n, cls = '') =>
   `<span class="objs ${cls}">${Array.from({ length: n }, () => `<span class="obj">${e}</span>`).join('')}</span>`;
 
@@ -189,9 +192,12 @@ const ENGLISH_GAMES = [
       const showLower = level === 3;
       return {
         key: item.word,
-        say: `${item.word}. ${item.word} starts with which letter?`,
+        // level 1 also plays the first sound as a hint
+        speak: level === 1
+          ? () => speakSteps(`${item.word}.`, `${item.word} starts with`, () => Phonics.play(item.l), 'Which letter makes that sound?')
+          : () => speakSteps(`${item.word}. Which letter does ${item.word} start with?`),
         html: `<div class="prompt-emoji">${item.e}</div>
-               <div class="prompt-word"><span class="blank">?</span>${item.word.slice(1)}</div>`,
+               <div class="prompt-word reveal"><span class="blank">?</span>${item.word.slice(1)}</div>`,
         style: 'letter',
         choices: letterOptions(item.l, n, level > 1).map(l => ({ html: showLower ? l.toLowerCase() : l, value: l })),
         answer: item.l,
@@ -202,6 +208,7 @@ const ENGLISH_GAMES = [
         onCorrect(el) {
           el.querySelector('.blank').textContent = item.word[0];
           el.querySelector('.blank').classList.add('filled');
+          el.querySelector('.prompt-word').classList.add('shown');
         },
       };
     },
@@ -212,21 +219,40 @@ const ENGLISH_GAMES = [
     zh: '押韵（语音意识）',
     emoji: '🎵',
     color: 'green',
-    maxLevel: 2,
+    maxLevel: 3,
     intro: 'Rhyming words sound the same at the end. Like cat and hat!',
+    // A listening game — no reading needed. Words are shown only at level 3.
     question(level) {
       const groupIdx = rnd(0, RHYMES.length - 1);
       const [a, b] = shuffle(RHYMES[groupIdx]);
-      const others = shuffle(RHYMES.filter((_, i) => i !== groupIdx)).slice(0, level === 1 ? 2 : 3).map(g => pick(g));
+      if (level === 1) {
+        // easiest form: do these two words rhyme? yes / no
+        const rhymes = Math.random() < 0.5;
+        const other = rhymes ? b : pick(pick(RHYMES.filter((_, i) => i !== groupIdx)));
+        return {
+          key: `${a.w}-${other.w}`,
+          label: `${a.w} / ${other.w}`,
+          say: `${a.w}… ${other.w}. Do they rhyme?`,
+          html: `<div class="pair"><span class="prompt-emoji">${a.e}</span><span class="op">+</span><span class="prompt-emoji">${other.e}</span></div>`,
+          style: 'picture',
+          choices: [{ html: '<span class="pic">👍</span><span class="cap">Yes</span>', value: 'yes', say: 'Yes' },
+            { html: '<span class="pic">👎</span><span class="cap">No</span>', value: 'no', say: 'No' }],
+          answer: rhymes ? 'yes' : 'no',
+          after: rhymes ? `${a.w}, ${other.w}. They rhyme!` : `${a.w}, ${other.w}. They don't rhyme.`,
+          onMount(el) {
+            el.querySelectorAll('.prompt-emoji').forEach((e, i) => e.addEventListener('click', () => Voice.say(i ? other.w : a.w)));
+          },
+        };
+      }
+      const others = shuffle(RHYMES.filter((_, i) => i !== groupIdx)).slice(0, level === 2 ? 2 : 3).map(g => pick(g));
       const opts = shuffle([b, ...others]);
-      const list = opts.map(o => o.w);
-      const spoken = `${list.slice(0, -1).join(', ')}, or ${list[list.length - 1]}`;
+      const words = level === 3;
       return {
         key: a.w,
-        say: `What rhymes with ${a.w}? ${spoken}?`,
-        html: `<div class="prompt-emoji">${a.e}</div><div class="prompt-word">${a.w}</div>`,
+        say: `What rhymes with ${a.w}? ${orList(opts.map(o => o.w))}?`,
+        html: `<div class="prompt-emoji">${a.e}</div>${words ? `<div class="prompt-word">${a.w}</div>` : ''}`,
         style: 'picture',
-        choices: opts.map(o => ({ html: `<span class="pic">${o.e}</span><span class="cap">${o.w}</span>`, value: o.w, say: o.w })),
+        choices: opts.map(o => ({ html: `<span class="pic">${o.e}</span>${words ? `<span class="cap">${o.w}</span>` : ''}`, value: o.w, say: o.w })),
         answer: b.w,
         after: `${a.w}, ${b.w}!`,
       };
@@ -235,7 +261,8 @@ const ENGLISH_GAMES = [
   {
     id: 'sight-words',
     title: 'Sight Words',
-    zh: '高频词认读',
+    zh: '高频词认读（进阶）',
+    stretch: true, // Kindergarten content — best after Letter Sounds level 2
     emoji: '📖',
     color: 'blue',
     maxLevel: 3,
@@ -339,6 +366,7 @@ const MATH_GAMES = [
       const item = pick(COUNT_ITEMS);
       return {
         key: `${n}`,
+        label: `数 ${n} 个`,
         say: `How many ${item.many}? Tap them to count!`,
         html: `<div class="count-area">${emojiRow(item.e, n, 'tenframe tappable')}</div>`,
         style: 'number',
@@ -414,6 +442,7 @@ const MATH_GAMES = [
       const shown = before ? ['?', seq[1], seq[2], seq[3]] : [seq[0], seq[1], seq[2], '?'];
       return {
         key: `${before}${ans}`,
+        label: before ? `? → ${seq[1]}` : `${seq[2]} → ?`,
         say: before
           ? `What comes before ${seq[1]}?`
           : `${seq[0]}, ${seq[1]}, ${seq[2]}… what comes next?`,
@@ -447,6 +476,7 @@ const MATH_GAMES = [
       const ans = fewer ? Math.min(a, b) : Math.max(a, b);
       return {
         key: `${a}-${b}-${fewer}`,
+        label: `${a} 和 ${b} 比${fewer ? '少' : '多'}`,
         say: fewer ? `Which group has fewer ${item.many}?` : `Which group has more ${item.many}?`,
         html: `<div class="prompt-text">Which has <span class="hl">${fewer ? 'fewer' : 'more'}</span>?</div>`,
         style: 'tray',
@@ -567,6 +597,7 @@ const MATH_GAMES = [
       const pool = [...used, ...set.filter(s => !used.includes(s))].slice(0, Math.max(3, used.length + 1));
       return {
         key: seq.join('') + ans,
+        label: `${seq.join('')} ?`,
         say: 'What comes next?',
         html: `<div class="seq pattern">${seq.map(s => `<span class="seq-item">${s}</span>`).join('')}<span class="seq-item q">?</span></div>`,
         style: 'picture',
@@ -616,18 +647,22 @@ function pickTraceTarget(kind, level, last) {
       again: `Almost! Trace all of the ${n}.`,
     };
   }
-  let L;
+  // Kindergarten handwriting starts with lowercase, so: L1 = letters of his name as written (E t h a n),
+  // L2 = lowercase letters, L3 = capitals.
+  let glyph;
   if (level === 1) {
-    const own = [...new Set(nameLetters().toUpperCase().split(''))];
-    L = pick(own.length > 1 ? own.filter(l => l !== last) : own);
+    const name = nameLetters();
+    const own = [...new Set(name.split('').map((ch, i) => (i === 0 ? ch.toUpperCase() : ch.toLowerCase())))];
+    glyph = pick(own.length > 1 ? own.filter(g => g !== last) : own);
   } else {
-    L = pick(LETTERS.filter(l => l !== last));
+    const L0 = pick(LETTERS.filter(l => l.toLowerCase() !== last && l !== last));
+    glyph = level === 2 ? L0.toLowerCase() : L0;
   }
+  const L = glyph.toUpperCase();
   const word = ALPHABET[L];
-  const lower = level === 3;
-  const glyph = lower ? L.toLowerCase() : L;
+  const lower = glyph !== L;
   return {
-    key: L,
+    key: glyph,
     glyph,
     lower,
     hint: `<span>${word.e}</span> ${glyph} is for ${word.word}`,
@@ -758,7 +793,7 @@ function traceRound(ctx, kind) {
     if (coverage > 0.45 && spill < 1.6) {
       e.currentTarget.disabled = true;
       ctx.success(box);
-      ctx.done(tries === 0);
+      ctx.done(tries === 0, target.key, target.glyph);
     } else {
       tries++;
       Sound.wrong();
@@ -804,7 +839,7 @@ function nameRound(ctx) {
       if (at === target.length) {
         setTimeout(() => {
           ctx.success(stage.querySelector('.name-slots'), `${target.split('').map(c => c.toUpperCase()).join(', ')}. ${target}! You spelled your name!`);
-          ctx.done(first);
+          ctx.done(first, 'name', target);
         }, 600);
       }
     } else {
@@ -818,4 +853,222 @@ function nameRound(ctx) {
   }));
 }
 
-const GAMES = [...ENGLISH_GAMES.map(g => ({ ...g, subject: 'english' })), ...MATH_GAMES.map(g => ({ ...g, subject: 'math' }))];
+/* ------------------------------------------------------------------ */
+/*  KINDY READY                                                        */
+/* ------------------------------------------------------------------ */
+
+
+const KINDY_GAMES = [
+  {
+    id: 'school-day',
+    title: 'My School Day',
+    zh: '学校一天的顺序',
+    emoji: '🏫',
+    color: 'blue',
+    maxLevel: 3,
+    custom: true,
+    intro: "Let's practise a day at big school!",
+    round: schoolDayRound,
+  },
+  {
+    id: 'school-smarts',
+    title: 'School Smarts',
+    zh: '在学校怎么做',
+    emoji: '🎒',
+    color: 'green',
+    maxLevel: 2,
+    intro: "Let's think about what to do at school.",
+    question(level) {
+      const pool = level === 1 ? SCHOOL_SITUATIONS.slice(0, 7) : SCHOOL_SITUATIONS;
+      const sit = pick(pool);
+      const opts = shuffle([sit.ok, ...sit.no]);
+      return {
+        key: sit.q,
+        label: `${sit.e} ${sit.ok.t}`,
+        say: `${sit.q} ${orList(opts.map(o => o.t))}?`,
+        html: `<div class="prompt-emoji">${sit.e}</div>`,
+        style: 'picture',
+        choices: opts.map(picChoice),
+        answer: sit.ok.t,
+        after: `${sit.ok.t}!`,
+      };
+    },
+  },
+  {
+    id: 'feelings',
+    title: 'Feelings',
+    zh: '认识情绪与平静方法',
+    emoji: '😊',
+    color: 'yellow',
+    maxLevel: 3,
+    intro: "Let's talk about feelings. All feelings are OK!",
+    question(level) {
+      const face = f => ({ html: `<span class="pic">${FEELINGS[f]}</span><span class="cap">${f}</span>`, value: f, say: f });
+      if (level === 1) {
+        const f = pick(Object.keys(FEELINGS));
+        return {
+          key: f,
+          say: `Find the ${f} face.`,
+          html: `<div class="prompt-text">Find the <span class="hl">${f}</span> face</div>`,
+          style: 'picture',
+          choices: options(f, Object.keys(FEELINGS), 3).map(face),
+          answer: f,
+          after: `That's ${f}!`,
+        };
+      }
+      if (level === 2) {
+        const st = pick(FEELING_STORIES);
+        const opts = shuffle([st.f, ...shuffle(st.no).slice(0, 2)]);
+        return {
+          key: st.s,
+          say: `${st.s} How might you feel? ${orList(opts)}?`,
+          html: `<div class="prompt-text">How might you feel?</div>`,
+          style: 'picture',
+          choices: opts.map(face),
+          answer: st.f,
+          after: `You might feel ${st.f}. It's OK to feel ${st.f}.`,
+        };
+      }
+      const f = pick(['angry', 'sad', 'scared', 'worried']);
+      const calm = pick(CALM_IDEAS);
+      const opts = shuffle([calm, ...shuffle(NOT_CALM).slice(0, 2)]);
+      return {
+        key: f + calm.t,
+        label: `${FEELINGS[f]} ${f} → ${calm.t}`,
+        say: `You feel ${f}. What can help you feel calm? ${orList(opts.map(o => o.t))}?`,
+        html: `<div class="prompt-emoji">${FEELINGS[f]}</div><div class="prompt-text">What can help?</div>`,
+        style: 'picture',
+        choices: opts.map(picChoice),
+        answer: calm.t,
+        after: `Good idea! ${calm.t} can help.`,
+      };
+    },
+  },
+  {
+    id: 'dino-says',
+    title: 'Dino Says',
+    zh: '听指令与自控（Dino 说）',
+    emoji: '🦖',
+    color: 'purple',
+    maxLevel: 3,
+    custom: true,
+    intro: 'Only tap when Dino says! If Dino does not say, wait.',
+    round: dinoSaysRound,
+  },
+];
+
+function schoolDayRound(ctx) {
+  const { stage, level } = ctx;
+  const routine = pick(ROUTINES.filter(r => r.name !== ctx.memo.last));
+  ctx.memo.last = routine.name;
+  const steps = routine.steps.slice(0, level + 2);
+  const cards = shuffle(steps.map((st, i) => ({ ...st, i })));
+  stage.innerHTML = `
+    <div class="routine">
+      <div class="routine-slots">${steps.map((_, i) => `<span class="rslot"><b>${i + 1}</b></span>`).join('')}</div>
+      <div class="routine-cards">${cards.map((c, k) => `
+        <button class="rcard c${k % 6}" data-i="${c.i}"><span class="pic">${c.e}</span><span class="cap">${c.t}</span></button>`).join('')}
+      </div>
+    </div>`;
+  ctx.prompt(`This is ${routine.name}. What happens first?`);
+
+  const slots = stage.querySelectorAll('.rslot');
+  let next = 0;
+  let first = true;
+  stage.querySelectorAll('.rcard').forEach(btn => btn.addEventListener('click', () => {
+    if (btn.disabled || next >= steps.length) return;
+    const st = steps[+btn.dataset.i];
+    if (+btn.dataset.i === next) {
+      btn.disabled = true;
+      btn.classList.add('used');
+      slots[next].innerHTML = `<span class="pic">${st.e}</span><small>${st.t}</small>`;
+      slots[next].classList.add('filled');
+      Sound.pop();
+      next++;
+      if (next === steps.length) {
+        const story = steps.map((x, i) => `${i === 0 ? 'First' : i === steps.length - 1 ? 'and then' : 'then'}, ${x.t.toLowerCase()}`).join('. ');
+        ctx.success(stage.querySelector('.routine-slots'), `${pick(PRAISE)} ${story}.`);
+        ctx.done(first, routine.name, routine.name);
+      } else {
+        Voice.say(`${st.t}. What happens next?`);
+      }
+    } else {
+      first = false;
+      Sound.wrong();
+      btn.classList.remove('shake');
+      void btn.offsetWidth;
+      btn.classList.add('shake');
+      Voice.say(next === 0 ? 'Hmm, what happens first?' : 'Hmm, what happens next?');
+    }
+  }));
+}
+
+// Self-control: tap only when "Dino says". Level 1 shows a picture cue; levels 2–3 are voice only.
+function dinoSaysRound(ctx) {
+  const { stage, level } = ctx;
+  const targets = shuffle(DINO_TARGETS).slice(0, level === 3 ? 4 : 3);
+  const target = pick(targets);
+  const says = Math.random() < (level === 1 ? 0.7 : 0.5);
+  const waitMs = level === 3 ? 3000 : 3500;
+  stage.innerHTML = `
+    <div class="dino-says" data-says="${says ? 1 : 0}" data-target="${target.n}">
+      <div class="ds-cue">${level === 1 ? (says ? '🦖💬' : '🤫') : '👂'}</div>
+      <div class="ds-targets">${targets.map((t, k) => `<button class="ds-btn c${k % 6}" data-n="${t.n}">${t.e}</button>`).join('')}</div>
+    </div>`;
+  const text = says ? `Dino says: tap the ${target.n}!` : `Tap the ${target.n}!`;
+
+  let first = true;
+  let finished = false;
+  let timer = null;
+  const finish = msg => {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    ctx.success(stage.querySelector('.ds-targets'), msg);
+    ctx.done(first, says ? 'says' : 'wait', says ? 'Dino says → 点' : 'Dino 没说 → 等待');
+  };
+  const startWait = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (!stage.isConnected) return;
+      finish(`${pick(PRAISE)} Dino didn't say, so you waited!`);
+    }, waitMs);
+  };
+  const spoken = ctx.prompt(text);
+  if (!says) Promise.resolve(spoken).then(() => { if (!finished) startWait(); });
+
+  stage.querySelectorAll('.ds-btn').forEach(btn => btn.addEventListener('click', () => {
+    if (finished) return;
+    if (!says) {
+      first = false;
+      Sound.wrong();
+      Voice.say("Oops! Dino didn't say. Wait…").then(() => { if (!finished) startWait(); });
+      clearTimeout(timer);
+      return;
+    }
+    if (btn.dataset.n === target.n) {
+      btn.classList.add('right');
+      finish(`${pick(PRAISE)} Dino said ${target.n}!`);
+    } else {
+      first = false;
+      Sound.wrong();
+      btn.classList.remove('shake');
+      void btn.offsetWidth;
+      btn.classList.add('shake');
+      Voice.say(`Listen again. ${text}`);
+    }
+  }));
+}
+
+// Display order on the subject screens: foundations first, stretch content last.
+const GAME_ORDER = [
+  'abc-explore', 'letter-sounds', 'letter-find', 'case-match', 'rhyme', 'first-letter', 'my-name', 'trace', 'sight-words',
+  'number-explore', 'count', 'number-find', 'trace-numbers', 'whats-next', 'more-less', 'shapes', 'patterns', 'add',
+  'school-day', 'school-smarts', 'feelings', 'dino-says',
+];
+
+const GAMES = [
+  ...ENGLISH_GAMES.map(g => ({ ...g, subject: 'english' })),
+  ...MATH_GAMES.map(g => ({ ...g, subject: 'math' })),
+  ...KINDY_GAMES.map(g => ({ ...g, subject: 'kindy' })),
+].sort((a, b) => GAME_ORDER.indexOf(a.id) - GAME_ORDER.indexOf(b.id));

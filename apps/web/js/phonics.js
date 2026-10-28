@@ -102,6 +102,23 @@ const Phonics = (() => {
       return new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
     },
 
+    // For backup / moving to another device: { letter: dataURL }
+    async exportAll() {
+      await ready;
+      const out = {};
+      for (const [l, blob] of Object.entries(cache)) {
+        out[l] = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+      }
+      return out;
+    },
+
+    async importAll(map) {
+      for (const [l, url] of Object.entries(map || {})) {
+        if (!PHONEMES[l]) continue;
+        await this.save(l, await (await fetch(url)).blob());
+      }
+    },
+
     canRecord: () => !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder),
   };
 })();

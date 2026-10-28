@@ -15,6 +15,6 @@
 - **涉及孩子数据或安全**：必须先更新 `company/policies/`。
 
 ## 和 AI Agent 协作
-- 任务写成 Issue 或在对话里说明目标，Agent 按 `CLAUDE.md` 的规则工作。
+- 任务写成 Issue 或在对话里说明目标，Agent 按 `AGENTS.md` 的规则工作，并在结束时更新 `product/status.md`。
 - Agent 的产出（代码、文档、研究）必须通过 PR / 提交进入仓库，并通过 `npm test`。
 - 研究类任务的结论写进 `research/`，并附上来源。

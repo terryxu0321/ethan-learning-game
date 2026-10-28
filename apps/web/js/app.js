@@ -7,6 +7,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const SUBJECTS = {
   english: { title: 'English', big: 'ABC', color: 'pink', hello: 'English time! Pick a game.' },
   math: { title: 'Math', big: '123', color: 'blue', hello: 'Math time! Pick a game.' },
+  kindy: { title: 'Kindy Ready', big: '🎒', color: 'green', hello: "Let's get ready for big school! Pick a game." },
 };
 
 const DINO_SVG = `
@@ -143,7 +144,7 @@ function showHome(greet) {
       <button class="mini-card c-purple" id="parents">👨‍👩‍👦 Parents 家长</button>
     </section>`, 'home');
 
-  if (greet) Voice.say(`Hi ${name()}! What do you want to learn today? English, or Math?`);
+  if (greet) Voice.say(`Hi ${name()}! What do you want to learn today? English, Math, or Kindy Ready?`);
 
   const lines = [
     `I'm Dino! Let's learn together, ${name()}!`,
@@ -183,7 +184,7 @@ function showSubject(key, quiet) {
         <button class="game-card c-${g.color}" data-game="${g.id}">
           <span class="gc-emoji">${g.emoji}</span>
           <span class="gc-title">${g.title}</span>
-          ${levelStars(g)}
+          ${levelStars(g)}${g.stretch ? '<span class="gc-tag">Kindergarten+</span>' : ''}
         </button>`).join('')}
     </section>`, `subject s-${key}`);
   if (!quiet) Voice.say(sub.hello);
@@ -241,15 +242,16 @@ function makeCtx(st, intro) {
     // text may be a string or an async function (e.g. one that plays a recorded letter sound)
     prompt(text) {
       st.lastPrompt = text;
-      if (intro) speakSteps(st.def.intro, text);
-      else speakSteps(text);
+      return intro ? speakSteps(st.def.intro, text) : speakSteps(text);
     },
     success(el, text) {
       Sound.correct();
       confetti(el);
       st.pending = Voice.say(text || `${pick(PRAISE)}`);
     },
-    done(first) {
+    // key/label identify what was practised this round, for the learner model
+    done(first, key, label) {
+      if (key !== undefined) Learner.record(st.def.id, String(key), String(label ?? key), first, Date.now() - st.roundStart);
       finishRound(st, first);
     },
   };
@@ -259,17 +261,15 @@ function nextRound(st, intro = false) {
   if (session !== st) return;
   if (st.i >= st.rounds) return finishGame(st);
   renderProgress(st);
+  st.roundStart = Date.now();
   const ctx = makeCtx(st, intro);
   if (st.def.custom) {
     st.def.round(ctx);
     return;
   }
 
-  let q;
-  for (let tries = 0; tries < 20; tries++) {
-    q = st.def.question(st.level);
-    if (!st.used.has(q.key)) break;
-  }
+  // favour items Ethan finds hard or is due to review (learner.js)
+  const q = Learner.pickQuestion(st.def, st.level, st.used);
   st.used.add(q.key);
 
   st.stage.innerHTML = `
@@ -292,7 +292,7 @@ function nextRound(st, intro = false) {
       st.stage.querySelectorAll('.choice').forEach(b => { if (b !== btn) b.classList.add('fade'); });
       q.onCorrect?.(promptEl);
       ctx.success(btn, `${pick(PRAISE)} ${q.after || ''}`);
-      ctx.done(first);
+      ctx.done(first, q.key, q.label ?? q.key);
     } else {
       first = false;
       btn.disabled = true;
@@ -345,6 +345,7 @@ function showReward(def, stars, sticker, isNew, levelMsg, level) {
       ${levelMsg === 'up' ? `<div class="levelup">Level up! ${'★'.repeat(level)}${'☆'.repeat(def.maxLevel - level)}</div>` : ''}
       <button class="gift" id="gift" aria-label="Open present">🎁</button>
       <div class="gift-label">Tap the present!</div>
+      ${GUIDE[def.id] ? `<div class="parent-card">👨‍👩‍👦 陪玩小任务：${pick(GUIDE[def.id].everyday)}</div>` : ''}
       <div class="reward-btns">
         <button class="btn btn-go" id="again">🔁 Again</button>
         <button class="btn btn-blue" id="more">🎮 More games</button>
@@ -406,6 +407,136 @@ function showStickers() {
 }
 
 /* ---------- parents ---------- */
+
+/* ---------- backup ---------- */
+
+async function exportProgress() {
+  const payload = { app: 'ethan-learning-game', version: 1, exported: new Date().toISOString(), data: Store.data, sounds: await Phonics.exportAll() };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `learning-land-${Store.dayKey()}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function importProgress(file) {
+  if (!file) return;
+  try {
+    const payload = JSON.parse(await file.text());
+    if (payload.app !== 'ethan-learning-game' || !payload.data) throw new Error('不是本 App 导出的文件');
+    if (!confirm(`导入 ${payload.exported?.slice(0, 10) || ''} 的进度？这台设备上现有的进度会被替换。`)) return;
+    localStorage.setItem(Store.KEY, JSON.stringify(payload.data));
+    Store.load();
+    await Phonics.importAll(payload.sounds);
+    alert('导入成功 ✅');
+    showParent();
+  } catch (e) {
+    alert(`导入失败：${e.message}`);
+  }
+}
+
+/* ---------- parent report ---------- */
+
+const pct = (ok, n) => (n ? Math.round((ok / n) * 100) : null);
+
+function reportHTML() {
+  const week = Learner.period(7);
+  const prev = Learner.period(7, 7);
+  const minutes = Math.round(week.ms / 60000);
+  const acc = pct(week.ok, week.rounds);
+  const prevAcc = pct(prev.ok, prev.rounds);
+  const trend = acc === null || prevAcc === null ? '' : acc > prevAcc ? ` ↑ 比上周高 ${acc - prevAcc}%` : acc < prevAcc ? ` ↓ 比上周低 ${prevAcc - acc}%` : ' 与上周持平';
+
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const x = Store.data.daily[Store.dayKey(d)];
+    days.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, min: x ? Math.round(x.ms / 60000) : 0, acc: x ? pct(x.ok, x.rounds) : null });
+  }
+  const maxMin = Math.max(15, ...days.map(d => d.min));
+
+  // letter & number maps combine the games that practise them
+  const cell = (label, keys) => {
+    const st = keys.map(([g, k]) => Learner.status(Learner.item(g, k)));
+    const s = st.includes('weak') ? 'weak' : st.includes('mastered') ? 'mastered' : st.includes('learning') ? 'learning' : 'new';
+    return `<span class="m-cell st-${s}">${label}</span>`;
+  };
+  const letterNames = LETTERS.map(l => cell(l, [['letter-find', l], ['case-match', l]])).join('');
+  const letterSounds = LETTERS.map(l => cell(l.toLowerCase(), [['letter-sounds', l]])).join('');
+  const numbers = Array.from({ length: 21 }, (_, n) => cell(n, [['number-find', `${n}`], ['count', `${n}`]])).join('');
+
+  const weak = Learner.weakItems(8);
+  const gameOf = id => GAMES.find(g => g.id === id);
+
+  return `
+    <div class="stats">
+      <div><b>${week.active}</b><span>本周练习天数</span></div>
+      <div><b>${minutes}</b><span>本周分钟数</span></div>
+      <div><b>${acc === null ? '—' : acc + '%'}</b><span>一次答对率${trend}</span></div>
+    </div>
+    <h3>最近 7 天（分钟）</h3>
+    <div class="week">${days.map(d => `
+      <div class="day" title="${d.acc === null ? '' : '一次答对率 ' + d.acc + '%'}"><div class="bar ${d.min > 30 ? 'over' : ''}" style="height:${(d.min / maxMin) * 100}%"><span>${d.min || ''}</span></div><small>${d.label}</small></div>`).join('')}
+    </div>
+    <h3>掌握地图 <small>🟩 已掌握 · 🟨 练习中 · 🟥 需要加强 · ⬜ 还没练</small></h3>
+    <div class="map"><b>字母名</b><div class="m-row">${letterNames}</div></div>
+    <div class="map"><b>字母音</b><div class="m-row">${letterSounds}</div></div>
+    <div class="map"><b>数字 0–20</b><div class="m-row">${numbers}</div></div>
+    <h3>常错的内容 <small>（游戏会自动多出这些题）</small></h3>
+    ${weak.length ? `<ul class="weak-list">${weak.map(w => `<li>${gameOf(w.gameId)?.emoji || ''} <b>${esc(w.label)}</b> <span class="muted">${gameOf(w.gameId)?.zh || ''} · ${w.n} 次中一次答对 ${w.ok} 次</span></li>`).join('')}</ul>`
+      : '<p class="muted">暂时没有反复出错的内容 👍</p>'}
+    <h3>💡 建议</h3>
+    <ul>${suggestions(week, weak).map(x => `<li>${x}</li>`).join('')}</ul>`;
+}
+
+// Rule-based suggestions from the learner model and the readiness checklist.
+function suggestions(week, weak) {
+  const out = [];
+  const minutes = week.ms / 60000;
+  if (week.active < 3) out.push('这周练习天数较少。每天 10–15 分钟，比周末一次玩很久更有效。');
+  const maxDay = Math.max(0, ...Object.entries(Store.data.daily).filter(([k]) => Date.now() - new Date(k) < 7 * 86400000).map(([, d]) => d.ms / 60000));
+  if (maxDay > 30) out.push(`有一天玩了约 ${Math.round(maxDay)} 分钟。5 岁孩子每天屏幕时间建议不超过 1 小时，学习类最好 10–20 分钟。`);
+  if (weak.length) {
+    const letters = weak.filter(w => /^[A-Z]$/.test(w.key)).map(w => w.key.toLowerCase());
+    if (letters.length) out.push(`字母 <b>${[...new Set(letters)].join(' ')}</b> 还不稳。可以做字母卡，在生活中找这些字母（家长指南里有方法）。`);
+    out.push('上面"常错的内容"会在游戏里自动多出现；答对 3 次后会转为隔几天复习。');
+  }
+  const below = READINESS.flatMap(g => g.rows).filter(r => Store.data.readiness[r.id] === 0);
+  if (below.length) out.push(`入学清单中还没到"最低"的：<b>${below.map(r => r.name).join('、')}</b>。这些优先在生活中练。`);
+  const unrated = READINESS.flatMap(g => g.rows).filter(r => Store.data.readiness[r.id] === undefined).length;
+  if (unrated) out.push(`入学准备清单还有 ${unrated} 项没有评估，花 5 分钟勾选一下，报告会更准确。`);
+  const stale = GAMES.filter(g => !g.free && Store.data.games[g.id]?.played && Learner.lastPlayed(g.id) >= 7);
+  if (stale.length) out.push(`超过一周没玩：${stale.map(g => g.title).join('、')}。可以安排复习，避免遗忘。`);
+  if (!out.length) out.push('一切顺利！保持每天短时间练习，并多陪孩子聊聊今天学了什么。');
+  return out;
+}
+
+function readinessHTML() {
+  const rows = READINESS.flatMap(g => g.rows);
+  const val = id => Store.data.readiness[id];
+  const atLeast = n => rows.filter(r => val(r.id) >= n).length;
+  return `
+    <p class="muted">依据 NSW Kindergarten 的入学标准（PRD-001 §8.1）。按孩子<b>现在稳定能做到的</b>选一档；"最高"约等于 Kindergarten 年末水平，入学前不需要全部达到。每 4–6 周更新一次。</p>
+    <div class="stats">
+      <div><b>${atLeast(1)}/${rows.length}</b><span>达到最低</span></div>
+      <div><b>${atLeast(2)}/${rows.length}</b><span>达到典型</span></div>
+      <div><b>${atLeast(3)}/${rows.length}</b><span>达到最高</span></div>
+    </div>
+    ${READINESS.map(g => `
+      <details class="ready-group" ${g.rows.some(r => val(r.id) === undefined) ? 'open' : ''}>
+        <summary>${g.title} <span class="muted">${g.rows.filter(r => val(r.id) !== undefined).length}/${g.rows.length} 已评估</span></summary>
+        ${g.rows.map(r => `
+          <div class="ready-row">
+            <div class="ready-head"><b>${r.name}</b> <span class="muted">${r.code}</span>
+              ${r.games.length ? `<button class="guide-link" data-guide="${r.games[0]}">📖 怎么练</button>` : ''}</div>
+            <div class="ready-levels">${READINESS_LEVELS.map((lv, i) => `
+              <button class="lv-btn ${val(r.id) === i ? 'on' : ''} lv${i}" data-ready="${r.id}" data-level="${i}">
+                <b>${lv}</b>${i ? `<small>${r.levels[i - 1]}</small>` : ''}</button>`).join('')}
+            </div>
+          </div>`).join('')}
+      </details>`).join('')}`;
+}
 
 // Games where first-try accuracy is low, with the first teaching tip for each.
 function focusAreas() {
@@ -519,13 +650,6 @@ function showParentGate() {
 
 function showParent() {
   const set = Store.data.settings;
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, n: Store.data.days[Store.dayKey(d)] || 0 });
-  }
-  const maxDay = Math.max(3, ...days.map(d => d.n));
   const totalPlays = Object.values(Store.data.games).reduce((t, g) => t + g.played, 0);
 
   const row = g => {
@@ -541,9 +665,19 @@ function showParent() {
 
   const s = screen(`
     ${topbar('🏠', 'Parents 家长')}
+    <section class="panel report">
+      <h2>📊 学习报告 Report</h2>
+      ${reportHTML()}
+    </section>
+
     <section class="panel focus">
       <h2>🎯 需要加强 Focus areas</h2>
       ${focusAreas()}
+    </section>
+
+    <section class="panel" id="readiness">
+      <h2>🎒 入学准备清单 School readiness</h2>
+      ${readinessHTML()}
     </section>
 
     <section class="panel">
@@ -553,10 +687,6 @@ function showParent() {
         <div><b>${Store.data.stickers.length}</b><span>🎁 贴纸</span></div>
         <div><b>${totalPlays}</b><span>🎮 完成游戏</span></div>
       </div>
-      <h3>最近7天 Last 7 days</h3>
-      <div class="week">${days.map(d => `
-        <div class="day"><div class="bar" style="height:${(d.n / maxDay) * 100}%"><span>${d.n || ''}</span></div><small>${d.label}</small></div>`).join('')}
-      </div>
       <h3>每个游戏 Per game <small>（等级会根据表现自动升降，也可以手动调整 · levels adjust automatically or set them here）</small></h3>
       <table class="prog">
         <thead><tr><th>游戏</th><th>等级</th><th>次数</th><th>一次答对率</th></tr></thead>
@@ -565,6 +695,8 @@ function showParent() {
           ${GAMES.filter(g => g.subject === 'english').map(row).join('')}
           <tr class="sec"><td colspan="4">🔢 Math 数学</td></tr>
           ${GAMES.filter(g => g.subject === 'math').map(row).join('')}
+          <tr class="sec"><td colspan="4">🎒 Kindy Ready 入学准备</td></tr>
+          ${GAMES.filter(g => g.subject === 'kindy').map(row).join('')}
         </tbody>
       </table>
     </section>
@@ -591,6 +723,12 @@ function showParent() {
       <div class="btn-row">
         <button class="btn btn-blue" id="test-voice">🔊 试听 Test</button>
         <button class="btn btn-ghost" id="reset">🗑️ 清空进度 Reset progress</button>
+      </div>
+      <h3>💾 备份与换设备 Backup</h3>
+      <p class="muted">导出一个文件（包含进度、报告数据和字母音录音），在另一台设备上导入即可继续。也可以当作定期备份。</p>
+      <div class="btn-row">
+        <button class="btn btn-blue" id="export">⬇️ 导出进度 Export</button>
+        <label class="btn btn-ghost file-btn">⬆️ 导入进度 Import<input type="file" id="import" accept="application/json,.json" hidden></label>
       </div>
     </section>
 
@@ -628,6 +766,13 @@ function showParent() {
   }));
   renderSoundStudio(s.querySelector('#sound-studio'));
   s.querySelectorAll('[data-guide]').forEach(btn => btn.addEventListener('click', () => showGuide(btn.dataset.guide)));
+  s.querySelectorAll('[data-ready]').forEach(btn => btn.addEventListener('click', () => {
+    Store.data.readiness[btn.dataset.ready] = +btn.dataset.level;
+    save();
+    const top = window.scrollY;
+    showParent();
+    window.scrollTo(0, top);
+  }));
   s.querySelector('#set-name').addEventListener('input', e => { Store.data.name = e.target.value.trim(); save(); });
   s.querySelector('#set-rounds').addEventListener('change', e => { set.rounds = +e.target.value; save(); });
   s.querySelector('#set-voice').addEventListener('change', e => { set.voice = e.target.checked; save(); });
@@ -639,6 +784,8 @@ function showParent() {
   });
   s.querySelector('#set-voiceuri').addEventListener('change', e => { set.voiceURI = e.target.value; save(); });
   s.querySelector('#test-voice').addEventListener('click', () => Voice.say(`Hello ${name()}! A is for apple. One, two, three!`));
+  s.querySelector('#export').addEventListener('click', exportProgress);
+  s.querySelector('#import').addEventListener('change', e => importProgress(e.target.files[0]));
   s.querySelector('#reset').addEventListener('click', () => {
     if (confirm('确定清空所有进度、星星和贴纸吗？\nReset all progress, stars and stickers?')) {
       Store.reset();

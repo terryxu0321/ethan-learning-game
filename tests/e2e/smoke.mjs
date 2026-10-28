@@ -82,6 +82,35 @@ try {
   check(true, `${id}: rejects blank, accepts traced glyph (3 levels)`);
   }
 
+  // My School Day: tap steps in order
+  for (let level = 1; level <= 3; level++) {
+    await page.evaluate(lv => { Store.game('school-day').level = lv; startGame(GAMES.find(x => x.id === 'school-day')); }, level);
+    for (let r = 0; r < 3; r++) {
+      await page.waitForSelector('.rcard');
+      const n = await page.locator('.rcard').count();
+      for (let i = 0; i < n; i++) await page.click(`.rcard[data-i="${i}"]`);
+      await page.waitForFunction(() => !document.querySelector('.rcard:not(.used)'), null, { timeout: 8000 });
+      await page.waitForTimeout(r < 2 ? 1500 : 0);
+    }
+    await page.waitForSelector('#gift', { timeout: 10000 });
+  }
+  check(true, 'school-day: routines can be ordered (3 levels)');
+
+  // Dino Says: tap only when Dino says, otherwise wait
+  for (let level = 1; level <= 3; level++) {
+    await page.evaluate(lv => { Store.game('dino-says').level = lv; startGame(GAMES.find(x => x.id === 'dino-says')); }, level);
+    for (let r = 0; r < 3; r++) {
+      await page.waitForSelector('.dino-says');
+      const before = await page.locator('.dot.done').count();
+      const { says, target } = await page.evaluate(() => ({ ...document.querySelector('.dino-says').dataset }));
+      if (says === '1') await page.click(`.ds-btn[data-n="${target}"]`);
+      await page.waitForFunction(b => document.querySelectorAll('.dot.done').length > b || document.querySelector('#gift'), before, { timeout: 8000 });
+      await page.waitForTimeout(r < 2 ? 1500 : 0); // next round renders after the praise
+    }
+    await page.waitForSelector('#gift', { timeout: 10000 });
+  }
+  check(true, 'dino-says: taps and waits correctly (3 levels)');
+
   // name spelling
   await page.evaluate(() => { Store.data.name = 'Ethan'; startGame(GAMES.find(x => x.id === 'my-name')); });
   for (let r = 0; r < 3; r++) {
@@ -99,6 +128,12 @@ try {
   await page.evaluate(() => showParent());
   check(await page.isVisible('table.prog'), 'parent dashboard renders');
 
+  // learner model recorded items, and the report + readiness checklist render
+  check(await page.evaluate(() => Object.keys(Store.data.items).length >= 10), 'learner model records practised items');
+  check(await page.isVisible('.report .map'), 'parent report with mastery map renders');
+  await page.click('[data-ready="oral"][data-level="2"]');
+  check(await page.evaluate(() => Store.data.readiness.oral === 2), 'readiness checklist saves a level');
+
   // every game has a teaching guide, and it opens from the dashboard
   const noGuide = await page.evaluate(() => GAMES.filter(g => !GUIDE[g.id] || GUIDE[g.id].skills.some(k => !SKILLS[k])).map(g => g.id));
   check(noGuide.length === 0, `every game has a parent guide${noGuide.length ? ' (missing: ' + noGuide.join(', ') + ')' : ''}`);
@@ -109,6 +144,15 @@ try {
   // parent can set a game's level
   await page.selectOption('select.lv[data-id="count"]', '3');
   check(await page.evaluate(() => Store.game('count').level) === 3, 'parent can set level');
+
+  // export → import round trip
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#export')]);
+  const file = await download.path();
+  await page.evaluate(() => { Store.data.stars = 0; Store.save(); });
+  page.on('dialog', d => d.accept());
+  await page.setInputFiles('#import', file);
+  await page.waitForFunction(() => Store.data.stars > 0, null, { timeout: 5000 });
+  check(true, 'progress export → import restores data');
 
   // letter-sound recording with a fake microphone; recording is then used in the game
   await page.waitForSelector('#sound-studio .rec');

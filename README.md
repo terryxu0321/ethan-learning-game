@@ -38,5 +38,5 @@ npm test           # 端到端冒烟测试：每个游戏、每个等级都自�
 
 - **决策写下来**：产品决策 → `product/`，技术决策 → `engineering/adr/`，公司决策 → `company/`。
 - **儿童安全第一**：任何改动都要满足 [`company/policies/child-safety.md`](company/policies/child-safety.md)。
-- **AI Agent 协作**：Claude Code 等 Agent 的工作规则见 [`CLAUDE.md`](CLAUDE.md)。
+- **AI Agent 协作**：Codex、Claude Code 等 Agent 共用一份规则 [`AGENTS.md`](AGENTS.md)（`CLAUDE.md` 只是引用它）；当前进度和下一步见 [`product/status.md`](product/status.md)。
 - **文档语言**：文档用中文（专有名词保留英文）；代码、注释、提交信息用英文；孩子看到的界面是英文。
