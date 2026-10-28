@@ -1060,15 +1060,93 @@ function dinoSaysRound(ctx) {
   }));
 }
 
+/* ------------------------------------------------------------------ */
+/*  中文 CHINESE (spoken in Mandarin; lang: 'zh-CN')                    */
+/* ------------------------------------------------------------------ */
+
+const hanziPool = level => HANZI.filter(h => h.g <= level);
+
+const CHINESE_GAMES = [
+  {
+    id: 'hanzi-explore',
+    title: '汉字探索',
+    zh: '认汉字（自由玩）',
+    emoji: '🀄',
+    color: 'red',
+    lang: 'zh-CN',
+    free: true,
+    intro: '点一个汉字，听听它怎么读！',
+    open(stage) {
+      stage.innerHTML = `<div class="explore-grid hanzi">${HANZI.map((h, i) =>
+        `<button class="explore-tile hz c${i % 6}" data-c="${h.c}">${h.c}</button>`).join('')}</div>`;
+      stage.querySelectorAll('.explore-tile').forEach(btn => btn.addEventListener('click', () => {
+        const h = HANZI.find(x => x.c === btn.dataset.c);
+        Sound.pop();
+        showCard(`<div class="big-letter hz">${h.c}</div><div class="big-emoji">${h.e}</div>`);
+        Voice.say(h.w);
+      }));
+    },
+  },
+  {
+    id: 'hanzi-find',
+    title: '找汉字',
+    zh: '听音找汉字',
+    emoji: '🔎',
+    color: 'orange',
+    lang: 'zh-CN',
+    maxLevel: 3,
+    intro: '听一听，找一找！',
+    question(level) {
+      const pool = hanziPool(level);
+      const h = pick(pool);
+      return {
+        key: h.c,
+        say: `找一找：${h.w}`,
+        // level 1 shows the picture as a hint
+        html: level === 1 ? `<div class="prompt-emoji">${h.e}</div>` : '<div class="prompt-text">👂</div>',
+        style: 'hanzi',
+        choices: options(h, pool, level === 3 ? 4 : 3).map(x => ({ html: x.c, value: x.c })),
+        answer: h.c,
+        after: h.w,
+      };
+    },
+  },
+  {
+    id: 'hanzi-match',
+    title: '字和图',
+    zh: '看字选图（真正的认读）',
+    emoji: '🖼️',
+    color: 'teal',
+    lang: 'zh-CN',
+    maxLevel: 3,
+    intro: '看看这个字，它是哪张图？',
+    question(level) {
+      const pool = hanziPool(level);
+      const h = pick(pool);
+      return {
+        key: h.c,
+        say: '这个字是什么意思？找出对的图。',
+        html: `<div class="prompt-letter hz">${h.c}</div>`,
+        style: 'picture',
+        choices: options(h, pool, level === 3 ? 4 : 3).map(x => ({ html: `<span class="pic">${x.e}</span>`, value: x.c })),
+        answer: h.c,
+        after: h.w,
+      };
+    },
+  },
+];
+
 // Display order on the subject screens: foundations first, stretch content last.
 const GAME_ORDER = [
   'abc-explore', 'letter-sounds', 'letter-find', 'case-match', 'rhyme', 'first-letter', 'my-name', 'trace', 'sight-words',
   'number-explore', 'count', 'number-find', 'trace-numbers', 'whats-next', 'more-less', 'shapes', 'patterns', 'add',
   'school-day', 'school-smarts', 'feelings', 'dino-says',
+  'hanzi-explore', 'hanzi-find', 'hanzi-match',
 ];
 
 const GAMES = [
   ...ENGLISH_GAMES.map(g => ({ ...g, subject: 'english' })),
   ...MATH_GAMES.map(g => ({ ...g, subject: 'math' })),
   ...KINDY_GAMES.map(g => ({ ...g, subject: 'kindy' })),
+  ...CHINESE_GAMES.map(g => ({ ...g, subject: 'chinese' })),
 ].sort((a, b) => GAME_ORDER.indexOf(a.id) - GAME_ORDER.indexOf(b.id));

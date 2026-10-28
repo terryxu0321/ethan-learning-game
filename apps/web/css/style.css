@@ -159,7 +159,7 @@ input, select { font-family: inherit; }
   border: 12px solid transparent; border-right: 20px solid #fff; border-left: 0;
 }
 
-.subject-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+.subject-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .subject-card {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
   min-height: 220px; border-radius: 36px; background: var(--c); color: #fff;
@@ -443,8 +443,7 @@ input, select { font-family: inherit; }
   .home-hero { flex-direction: column; text-align: center; }
   .bubble::before { left: 50%; top: -18px; margin: 0 0 0 -12px; border: 12px solid transparent; border-bottom: 20px solid #fff; border-top: 0; }
   .mascot { width: 120px; }
-  .subject-cards { gap: 12px; grid-template-columns: 1fr 1fr; }
-  .subject-cards .subject-card:nth-child(3) { grid-column: 1 / -1; min-height: 130px; }
+  .subject-cards { gap: 12px; }
   .subject-card { min-height: 170px; }
   .home-row { grid-template-columns: 1fr; gap: 12px; }
   .game-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -584,3 +583,10 @@ input, select { font-family: inherit; }
 .pair { display: flex; align-items: center; gap: 18px; }
 .prompt-word.reveal { visibility: hidden; }
 .prompt-word.reveal.shown { visibility: visible; }
+
+/* ---------- 中文 ---------- */
+
+.hz { font-family: "Kaiti SC", "STKaiti", "KaiTi", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif; font-weight: 600; }
+.choices--hanzi .choice { font-family: "Kaiti SC", "STKaiti", "KaiTi", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 72px; }
+.explore-grid.hanzi .explore-tile { font-size: 48px; }
+.m-cell .hz { font-size: 16px; }

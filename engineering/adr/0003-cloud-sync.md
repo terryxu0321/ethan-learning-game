@@ -1,5 +1,5 @@
 # 0003 多设备同步（电脑、iPad、手机）
-- 状态：**提议**，等待创始人选择方案并创建账号
+- 状态：**已采纳**（2026-10-28 创始人已创建 Firebase 项目 `ethan-learning-game`），等待网页配置后实现
 - 日期：2026-10-28
 
 ## 背景
@@ -11,7 +11,7 @@
 |---|---|---|---|
 | 登录 | Google 账号一键登录 | 邮箱魔法链接 | 无 |
 | 离线后自动同步 | ✅ Firestore 自带离线缓存和同步 | 需要自己写 | ❌ 手动 |
-| 录音同步 | Firebase Storage | Supabase Storage | 文件里带着 |
+| 录音同步 | 存在 Firestore 文档里（免费方案可用） | Supabase Storage | 文件里带着 |
 | 数据位置 | 可选 **澳洲悉尼区域（australia-southeast1）** | 可选 Sydney 区域 | 只在设备上 |
 | 费用 | 免费额度（Spark）足够一个家庭使用 | 免费额度；长时间不用项目会暂停 | 免费 |
 | 能否继续纯静态托管 | ✅ 不需要自己的服务器 | ✅ | ✅ |
@@ -20,7 +20,8 @@
 ## 决定（提议）
 采用 **A. Firebase**：
 - 家长用 Google 账号登录（只在家长页）；孩子端不需要登录。
-- Firestore 数据结构：`families/{uid}/profiles/{profileId}` 存 `Store.data`；录音存 Storage `families/{uid}/sounds/{letter}`。
+- Firestore 数据结构：`families/{uid}/profiles/{profileId}` 存 `Store.data`；录音以 base64 存在 `families/{uid}/sounds/{letter}`（每个约 20–40 KB，远小于 1 MB 文档上限）。
+  不用 Cloud Storage：新建的 Storage 存储桶需要升级到付费的 Blaze 方案，Firestore 在免费的 Spark 方案里就够用。
 - 安全规则：只有登录的家长本人能读写自己的数据。
 - 合并策略：设备离线练习后再联网时，学习记录按"取并集、计数取最大"合并，设置按"最后修改的为准"，避免两台设备的进度互相覆盖。
 - 未登录时一切照旧，只存在本机。

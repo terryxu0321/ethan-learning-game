@@ -41,6 +41,8 @@ ${section('🔤 English 英文', 'english')}
 ${section('🔢 Math 数学', 'math')}
 
 ${section('🎒 Kindy Ready 入学准备', 'kindy')}
+
+${section('🀄 中文', 'chinese')}
 `;
 await writeFile(new URL('curriculum/parent-guide.md', root), md);
 console.log(`Wrote curriculum/parent-guide.md (${GAMES.length} games)`);

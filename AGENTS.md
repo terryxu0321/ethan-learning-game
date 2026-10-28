@@ -46,5 +46,5 @@ This repo is a company OS: product code + product/curriculum/AI/company docs. Re
 - Don't rely on tool-specific features in the repo (no agent-only config required to build or test).
 
 ## Conventions
-- Docs in Simplified Chinese (keep product/tech terms in English); code, comments, commits in English; child-facing UI in English.
+- Docs in Simplified Chinese (keep product/tech terms in English); code, comments, commits in English; child-facing UI in English — except the 中文 subject, whose games set `lang: 'zh-CN'` and speak Mandarin.
 - Match the surrounding code style (vanilla JS, template strings, no frameworks).

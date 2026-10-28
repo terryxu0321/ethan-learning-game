@@ -8,6 +8,7 @@ const SUBJECTS = {
   english: { title: 'English', big: 'ABC', color: 'pink', hello: 'English time! Pick a game.' },
   math: { title: 'Math', big: '123', color: 'blue', hello: 'Math time! Pick a game.' },
   kindy: { title: 'Kindy Ready', big: '🎒', color: 'green', hello: "Let's get ready for big school! Pick a game." },
+  chinese: { title: '中文', big: '中', color: 'red', hello: '中文时间！选一个游戏吧。', lang: 'zh-CN' },
 };
 
 const DINO_SVG = `
@@ -40,6 +41,7 @@ function screen(html, cls = '') {
   closeCard();
   app.innerHTML = `<div class="screen ${cls}">${html}</div>`;
   window.scrollTo(0, 0);
+  Voice.lang = null;
   return app.firstElementChild;
 }
 
@@ -187,7 +189,7 @@ function showSubject(key, quiet) {
           ${levelStars(g)}${g.stretch ? '<span class="gc-tag">Kindergarten+</span>' : ''}
         </button>`).join('')}
     </section>`, `subject s-${key}`);
-  if (!quiet) Voice.say(sub.hello);
+  if (!quiet) Voice.say(sub.hello, { lang: sub.lang });
   on(s, '[data-back]', () => showHome());
   on(s, '[data-game]', (e, el) => startGame(GAMES.find(g => g.id === el.dataset.game)));
 }
@@ -201,6 +203,7 @@ function startGame(def) {
     <section class="stage"></section>
     ${def.free ? '' : `<button class="speak-btn" aria-label="Say it again">🔊</button>`}`, `game g-${def.color}`);
   on(s, '[data-back]', () => showSubject(def.subject, true));
+  Voice.lang = def.lang || null; // Chinese games speak Mandarin
 
   const stage = s.querySelector('.stage');
   if (def.free) {
@@ -233,6 +236,8 @@ function renderProgress(st) {
     `<span class="dot ${i < st.i ? 'done' : i === st.i ? 'now' : ''}">${i < st.i ? '⭐' : ''}</span>`).join('');
 }
 
+const praise = def => pick(def.lang ? PRAISE_ZH : PRAISE);
+
 function makeCtx(st, intro) {
   return {
     stage: st.stage,
@@ -247,7 +252,7 @@ function makeCtx(st, intro) {
     success(el, text) {
       Sound.correct();
       confetti(el);
-      st.pending = Voice.say(text || `${pick(PRAISE)}`);
+      st.pending = Voice.say(text || praise(st.def));
     },
     // key/label identify what was practised this round, for the learner model
     done(first, key, label) {
@@ -291,14 +296,15 @@ function nextRound(st, intro = false) {
       btn.classList.add('right');
       st.stage.querySelectorAll('.choice').forEach(b => { if (b !== btn) b.classList.add('fade'); });
       q.onCorrect?.(promptEl);
-      ctx.success(btn, `${pick(PRAISE)} ${q.after || ''}`);
+      ctx.success(btn, `${praise(st.def)} ${q.after || ''}`);
       ctx.done(first, q.key, q.label ?? q.key);
     } else {
       first = false;
       btn.disabled = true;
       btn.classList.add('wrong', 'shake');
       Sound.wrong();
-      Voice.say(c.say ? `${c.say}? ${pick(TRY_AGAIN)}` : pick(TRY_AGAIN));
+      const again = pick(st.def.lang ? TRY_AGAIN_ZH : TRY_AGAIN);
+      Voice.say(c.say ? `${c.say}? ${again}` : again);
     }
   }));
 }
@@ -483,6 +489,7 @@ function reportHTML() {
     <div class="map"><b>字母名</b><div class="m-row">${letterNames}</div></div>
     <div class="map"><b>字母音</b><div class="m-row">${letterSounds}</div></div>
     <div class="map"><b>数字 0–20</b><div class="m-row">${numbers}</div></div>
+    <div class="map"><b>汉字</b><div class="m-row">${HANZI.map(h => cell(`<span class="hz">${h.c}</span>`, [['hanzi-find', h.c], ['hanzi-match', h.c]])).join('')}</div></div>
     <h3>常错的内容 <small>（游戏会自动多出这些题）</small></h3>
     ${weak.length ? `<ul class="weak-list">${weak.map(w => `<li>${gameOf(w.gameId)?.emoji || ''} <b>${esc(w.label)}</b> <span class="muted">${gameOf(w.gameId)?.zh || ''} · ${w.n} 次中一次答对 ${w.ok} 次</span></li>`).join('')}</ul>`
       : '<p class="muted">暂时没有反复出错的内容 👍</p>'}
@@ -697,6 +704,8 @@ function showParent() {
           ${GAMES.filter(g => g.subject === 'math').map(row).join('')}
           <tr class="sec"><td colspan="4">🎒 Kindy Ready 入学准备</td></tr>
           ${GAMES.filter(g => g.subject === 'kindy').map(row).join('')}
+          <tr class="sec"><td colspan="4">🀄 中文</td></tr>
+          ${GAMES.filter(g => g.subject === 'chinese').map(row).join('')}
         </tbody>
       </table>
     </section>
@@ -720,6 +729,7 @@ function showParent() {
         </select>
       </label>
       ${Voice.supported ? '' : '<p class="warn">⚠️ 这个浏览器不支持语音朗读，建议使用 Safari / Chrome。</p>'}
+      ${!Voice.supported || Voice.hasChinese() ? '' : '<p class="warn">⚠️ 这台设备没有中文语音，中文游戏会读不出来。iPad / iPhone：设置 → 辅助功能 → 朗读内容 → 声音 → 中文，下载一个普通话声音。</p>'}
       <div class="btn-row">
         <button class="btn btn-blue" id="test-voice">🔊 试听 Test</button>
         <button class="btn btn-ghost" id="reset">🗑️ 清空进度 Reset progress</button>

@@ -67,7 +67,7 @@ const Voice = (() => {
   const keep = []; // hold references so Chrome doesn't garbage-collect utterances mid-speech
 
   function load() {
-    voices = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
+    voices = speechSynthesis.getVoices();
   }
   if (supported) {
     load();
@@ -76,6 +76,12 @@ const Voice = (() => {
 
   const norm = s => s.replace('_', '-').toLowerCase();
 
+  function pickChinese() {
+    const zh = voices.filter(v => /^zh/i.test(v.lang));
+    // Mandarin (mainland) first, then Taiwan, then any Chinese voice
+    return zh.find(v => norm(v.lang) === 'zh-cn') || zh.find(v => norm(v.lang) === 'zh-tw') || zh[0] || null;
+  }
+
   function pick() {
     const uri = Store.data.settings.voiceURI;
     if (uri) {
@@ -83,18 +89,22 @@ const Voice = (() => {
       if (chosen) return chosen;
     }
     // Prefer an Australian voice (for kindy!), then British, then US, then any English.
+    const english = voices.filter(v => /^en/i.test(v.lang));
     for (const lang of ['en-au', 'en-gb', 'en-us']) {
-      const local = voices.filter(v => norm(v.lang) === lang);
+      const local = english.filter(v => norm(v.lang) === lang);
       const nice = local.find(v => /natural|premium|enhanced|google|karen|samantha/i.test(v.name));
       if (nice || local[0]) return nice || local[0];
     }
-    return voices[0] || null;
+    return english[0] || null;
   }
 
   // Each new (non-queued) utterance starts a new "turn", which cancels any speakSteps() sequence still running.
   let turn = 0;
 
-  function say(text, { queue = false, keepTurn = false } = {}) {
+  // lang: 'en' (default) or 'zh-CN'. Games set Voice.lang for their whole session.
+  let gameLang = null;
+
+  function say(text, { queue = false, keepTurn = false, lang = gameLang } = {}) {
     if (!keepTurn && !queue) {
       turn++;
       if (typeof Phonics !== 'undefined') Phonics.stop();
@@ -103,8 +113,9 @@ const Voice = (() => {
     if (!queue) speechSynthesis.cancel();
     return new Promise(resolve => {
       const u = new SpeechSynthesisUtterance(text);
-      const v = pick();
-      if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'en-AU'; }
+      const zh = /^zh/i.test(lang || '');
+      const v = zh ? pickChinese() : pick();
+      if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = zh ? 'zh-CN' : 'en-AU'; }
       u.rate = Store.data.settings.rate;
       u.pitch = 1.1;
       let finished = false;
@@ -118,7 +129,7 @@ const Voice = (() => {
       u.onend = done;
       u.onerror = done;
       // Safety net: some browsers never fire onend.
-      setTimeout(done, 1500 + text.length * 110 / Store.data.settings.rate);
+      setTimeout(done, 1500 + text.length * (zh ? 380 : 110) / Store.data.settings.rate);
       keep.push(u);
       speechSynthesis.speak(u);
     });
@@ -132,7 +143,10 @@ const Voice = (() => {
       if (typeof Phonics !== 'undefined') Phonics.stop();
       if (supported) speechSynthesis.cancel();
     },
-    list() { return voices; },
+    list() { return voices.filter(v => /^en/i.test(v.lang)); },
+    hasChinese() { return !!pickChinese(); },
+    get lang() { return gameLang; },
+    set lang(l) { gameLang = l; },
     get turn() { return turn; },
     nextTurn() { if (typeof Phonics !== 'undefined') Phonics.stop(); return ++turn; },
   };
