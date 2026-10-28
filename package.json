@@ -1,0 +1,12 @@
+{
+  "name": "ethan-learning-game",
+  "private": true,
+  "description": "Ethan's Learning Land — voice-guided English & Math games for kindy readiness",
+  "scripts": {
+    "start": "node tests/e2e/serve.mjs",
+    "test": "node tests/e2e/smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.47.0"
+  }
+}
