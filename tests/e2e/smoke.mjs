@@ -135,8 +135,12 @@ try {
   await page.click('[data-ready="oral"][data-level="2"]');
   check(await page.evaluate(() => Store.data.readiness.oral === 2), 'readiness checklist saves a level');
 
+  await page.click('#howto');
+  check(await page.isVisible('.guide-pop'), 'usage guide opens from the parent page');
+  await page.click('.card-close');
+
   // every game has a teaching guide, and it opens from the dashboard
-  const noGuide = await page.evaluate(() => GAMES.filter(g => !GUIDE[g.id] || GUIDE[g.id].skills.some(k => !SKILLS[k])).map(g => g.id));
+  const noGuide = await page.evaluate(() => GAMES.filter(g => !GUIDE[g.id] || !GAME_PRD[g.id] || GUIDE[g.id].skills.some(k => !SKILLS[k])).map(g => g.id));
   check(noGuide.length === 0, `every game has a parent guide${noGuide.length ? ' (missing: ' + noGuide.join(', ') + ')' : ''}`);
   await page.click('[data-guide="letter-sounds"]');
   check(await page.isVisible('.guide-pop'), 'parent guide opens');

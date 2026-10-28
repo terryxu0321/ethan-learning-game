@@ -11,10 +11,12 @@
 | `js/audio.js` | 音效（Web Audio 合成）+ 语音朗读（Web Speech API，优先澳洲口音） |
 | `js/data.js` | 字母、单词、字母音（PHONEMES）、phonics 分组、押韵、贴纸等内容库 |
 | `js/phonics.js` | 字母音播放与家长录音（IndexedDB，只存在设备上） |
-| `js/games.js` | 22 个小游戏（English、Math、Kindy Ready）的出题逻辑 |
+| `js/games.js` | 25 个小游戏（English、Math、Kindy Ready、中文）的出题逻辑；完整清单见 `curriculum/games.md` |
 | `js/guide.js` | 每个游戏的家长教学指南（学习目标、教法） |
 | `js/readiness.js` | 入学准备清单（最低 / 典型 / 最高） |
 | `js/learner.js` | 学习者模型：每个题目的对错、间隔复习、针对性出题、报告数据 |
+| `js/howto.js` | 家长使用指南（家长页 📘） |
+| `js/sync.js` | 可选的多设备同步（Firebase，家长登录后才加载） |
 | `js/app.js` | 页面切换、游戏引擎、奖励、贴纸册、家长页 |
 
 ## 新增一个游戏
@@ -32,4 +34,4 @@
 }
 ```
 
-然后：在 `js/guide.js` 里加教学指南 → 在 `curriculum/scope-and-sequence.md` 登记技能 → `npm run docs` → `npm test`。
+然后：在 `js/guide.js` 里加教学指南和 `GAME_PRD` 编号 → 在 `curriculum/scope-and-sequence.md` 登记技能 → `npm run docs` → `npm test`。

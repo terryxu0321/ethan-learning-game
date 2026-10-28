@@ -1,18 +1,25 @@
 # 架构 Architecture
 
-## 现状（v0.1）
+## 现状（2026-10-28）
 ```
-浏览器（iPad Safari / Chrome）
- └─ apps/web/index.html
-     ├─ store.js   进度 → localStorage（设备本地）
-     ├─ audio.js   Web Audio 音效 + Web Speech 朗读（设备本地）
-     ├─ data.js    内容库
-     ├─ games.js   16 个游戏（question(level) / round(ctx) / open(stage)）
-     └─ app.js     路由、游戏引擎、奖励、家长页
+浏览器（iPad Safari / Chrome / 电脑）
+ └─ apps/web/index.html（普通 <script>，按顺序加载，共享全局变量）
+     ├─ store.js      进度 → localStorage
+     ├─ audio.js      Web Audio 音效 + Web Speech 朗读（英文 / 普通话）+ speakSteps()
+     ├─ data.js       内容库（字母、单词、字母音、Kindy Ready、汉字…）
+     ├─ phonics.js    字母音播放 + 家长录音（IndexedDB）
+     ├─ games.js      25 个游戏（question(level) / round(ctx) / open(stage)）
+     ├─ guide.js      每个游戏的家长教学指南 + PRD 编号
+     ├─ readiness.js  入学准备清单
+     ├─ howto.js      家长使用指南
+     ├─ learner.js    学习者模型：逐项记录、间隔复习、针对性出题、报告数据
+     ├─ sync.js       可选的多设备同步（Firebase Auth + Firestore，家长登录后才加载）
+     └─ app.js        路由、游戏引擎、奖励、家长页（报告、清单、录音、同步、设置）
 托管：GitHub Pages（main 分支，根目录 index.html 跳转到 apps/web/）
-外部请求：仅 Google Fonts
+外部请求：Google Fonts；开启同步后加载 Firebase SDK 并连接 Firestore（悉尼）
+文档生成：npm run docs → curriculum/ 下的家长指南、入学清单、使用指南、游戏清单
 ```
-特点：零后端、零账号、零数据外传；任何静态托管都能运行；离线时（缓存后）大部分可用。
+特点：零自建后端；默认零数据外传；任何静态托管都能运行。
 
 ## 演进路线
 | 阶段 | 变化 | 触发条件 |

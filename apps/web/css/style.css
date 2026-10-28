@@ -590,3 +590,5 @@ input, select { font-family: inherit; }
 .choices--hanzi .choice { font-family: "Kaiti SC", "STKaiti", "KaiTi", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 72px; }
 .explore-grid.hanzi .explore-tile { font-size: 48px; }
 .m-cell .hz { font-size: 16px; }
+.howto-bar { padding: 14px 22px; }
+.howto-bar .btn { width: 100%; font-size: 20px; }

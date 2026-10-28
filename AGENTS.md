@@ -21,7 +21,8 @@ This repo is a company OS: product code + product/curriculum/AI/company docs. Re
   - Script load order matters (plain `<script>` tags, shared globals) — see `apps/web/index.html`.
 - Requirements: `product/prd/`. New feature specs: `product/specs/` (copy `_template.md`).
 - Learning objectives: `curriculum/scope-and-sequence.md` — every new game must map to a row there.
-- Parent teaching guide: `apps/web/js/guide.js` — every game needs an entry (goal, skills, how to teach); run `npm run docs` to regenerate `curriculum/parent-guide.md`. The smoke test fails if a game has no guide.
+- Parent teaching guide: `apps/web/js/guide.js` — every game needs a `GUIDE` entry (goal, skills, how to teach) and a `GAME_PRD` feature id; run `npm run docs` to regenerate `curriculum/` (parent guide, game catalog `games.md`, readiness checklist, how-to-use). The smoke test fails if a game has no guide.
+- After shipping or changing a feature, update its row in PRD-001 §6.0 (feature status table). The game list itself is never hand-written — it is `curriculum/games.md`.
 - Technical decisions: `engineering/adr/NNNN-title.md`.
 - AI prompts / evals / experiments: `ai/`.
 - Market research: `research/<NN-topic>/` with `findings.md`, `sources.md`, `raw/`.

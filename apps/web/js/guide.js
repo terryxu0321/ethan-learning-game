@@ -32,6 +32,16 @@ const SKILLS = {
   C2: '中文：看字知义（字 → 图）',
 };
 
+// Which PRD-001 feature each game implements (used by the generated catalog, curriculum/games.md).
+const GAME_PRD = {
+  'abc-explore': 'F-01', 'letter-sounds': 'F-20', 'letter-find': 'F-02', 'case-match': 'F-03', 'rhyme': 'F-05',
+  'first-letter': 'F-04 / F-21', 'my-name': 'F-08', 'trace': 'F-07 / F-34', 'sight-words': 'F-06 / F-24',
+  'number-explore': 'F-09', 'count': 'F-09', 'number-find': 'F-09', 'trace-numbers': 'F-29', 'whats-next': 'F-09',
+  'more-less': 'F-09', 'shapes': 'F-09', 'patterns': 'F-09', 'add': 'F-09',
+  'school-day': 'F-61', 'school-smarts': 'F-61', 'feelings': 'F-61', 'dino-says': 'F-61',
+  'hanzi-explore': 'F-67', 'hanzi-find': 'F-67', 'hanzi-match': 'F-67',
+};
+
 const GUIDE = {
   'abc-explore': {
     skills: ['E1', 'E2', 'E3'],

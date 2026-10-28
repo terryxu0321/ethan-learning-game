@@ -154,7 +154,7 @@ function showHome(greet) {
     'Did you know? Dinosaurs love counting!',
     `You are so clever, ${name()}!`,
     'Tap English or Math to play!',
-    'Collect all the stickers!',
+    "Let's learn something new today!",
   ];
   s.querySelector('#mascot').addEventListener('click', e => {
     const line = pick(lines);
@@ -606,6 +606,12 @@ function focusAreas() {
   }).join('');
 }
 
+function showHowto() {
+  showCard(`<h2>📘 使用指南</h2>${HOWTO.map(sec => `
+    <h3>${sec.title}</h3>${sec.intro ? `<p>${sec.intro}</p>` : ''}
+    <ul>${sec.items.map(i => `<li>${i}</li>`).join('')}</ul>`).join('')}`, 'guide-pop');
+}
+
 function showGuide(id) {
   const g = GAMES.find(x => x.id === id);
   const guide = GUIDE[id];
@@ -709,6 +715,10 @@ function showParent() {
 
   const s = screen(`
     ${topbar('🏠', 'Parents 家长')}
+    <section class="panel howto-bar">
+      <button class="btn btn-go" id="howto">📘 使用指南：怎么陪孩子用这个平台</button>
+    </section>
+
     <section class="panel" id="sync-panel"></section>
 
     <section class="panel report">
@@ -815,6 +825,7 @@ function showParent() {
   }));
   renderSoundStudio(s.querySelector('#sound-studio'));
   renderSyncPanel(s.querySelector('#sync-panel'));
+  s.querySelector('#howto').addEventListener('click', showHowto);
   s.querySelectorAll('[data-guide]').forEach(btn => btn.addEventListener('click', () => showGuide(btn.dataset.guide)));
   s.querySelectorAll('[data-ready]').forEach(btn => btn.addEventListener('click', () => {
     Store.data.readiness[btn.dataset.ready] = +btn.dataset.level;

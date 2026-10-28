@@ -14,8 +14,8 @@
 | E1 | 认识 26 个大写字母（名称） | AC9EFLY11 | Find the Letter L1–2, ABC Explorer | ✅ | — |
 | E2 | 认识小写字母、大小写配对 | AC9EFLY11 | Big & Little, Find the Letter L3 | ✅ | — |
 | E3 | **每个字母最常见的音（phoneme）** | AC9EFLY11 | Letter Sounds, ABC Explorer | 🟡 | 游戏已上线；音质取决于家长是否录音 |
-| E4 | 押韵识别 | AC9EFLY09 | Rhyme Time | ✅ | — |
-| E5 | 首音识别 | AC9EFLY09 | First Letter（目前问"哪个字母"） | 🟡 | v0.2 改为音素版本（/d/ dog） |
+| E4 | 押韵识别（听，不需认字） | AC9EFLY09 | Rhyme Time（L1 判断押韵 → L2 选押韵图 → L3 显示单词） | ✅ | — |
+| E5 | 首音识别 | AC9EFLY09 | First Letter（L1 已播放首音提示） | 🟡 | 改为完整音素版本（F-21） |
 | E6 | **口头拼读 blend / 拆音 segment** | AC9EFLY10 | — | ⬜ | v0.2 Sound Blender |
 | E7 | **读写 CVC 单词**（cat, dog, sun） | AC9EFLY12 | — | ⬜ | v0.3 Sound Builder |
 | E8 | 高频词：可拼读词 vs tricky words | AC9EFLY14 | Sight Words（混合） | 🟡 | v0.2 拆分 |
@@ -54,9 +54,9 @@
 
 | # | 领域 | 框架 | 形式 | 计划 |
 |---|---|---|---|---|
-| W1 | 学校日常与自理（上厕所、饭盒、recess / lunch、书包） | AEDC 身体健康；学校入学清单 | 混合 + 陪玩卡 | F-61 Kindy Ready（入学前） |
-| W2 | 情绪认识与自我调节 | AEDC 情绪成熟度；PDHPE PHE-SMI-01 | 混合 + 陪玩卡 | F-61 |
-| W3 | 社交（轮流、分享、求助） | AEDC 社交能力 | 线下为主 | F-61 陪玩卡 |
+| W1 | 学校日常与自理（上厕所、饭盒、recess / lunch、书包） | AEDC 身体健康；学校入学清单 | 混合 + 陪玩卡 | ✅ My School Day、School Smarts |
+| W2 | 情绪认识与自我调节 | AEDC 情绪成熟度；PDHPE PHE-SMI-01 | 混合 + 陪玩卡 | ✅ Feelings、Dino Says |
+| W3 | 社交（轮流、分享、求助） | AEDC 社交能力 | 线下为主 | ✅ School Smarts + 陪玩卡 |
 | W4 | 科学：生物、材料、运动；提问与观察 | Science & Technology K–6 STE-SCI-01、STE-PQU-01 | App + 家庭实验 | F-64 |
 | W5 | 音乐：节拍、快慢高低 | Creative Arts K–6 | App + 跟唱 | F-65 |
 | W6 | 动作技能、健康与安全 | PDHPE K–6 | 线下为主 | F-66 |
