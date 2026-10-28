@@ -12,7 +12,8 @@ const Store = {
       daily: {},     // day → { rounds, ok, ms }
       items: {},     // gameId → item key → { n, ok, box, last, label } (see learner.js)
       readiness: {}, // checklist row id → level 0–3
-      settings: { voice: true, sfx: true, rate: 0.9, voiceURI: '', rounds: 5 },
+      // sequential: a game opens once the previous one has a crown; sessionMin: break reminder (0 = off)
+      settings: { voice: true, sfx: true, rate: 0.9, voiceURI: '', rounds: 5, sequential: true, sessionMin: 15 },
     };
   },
 

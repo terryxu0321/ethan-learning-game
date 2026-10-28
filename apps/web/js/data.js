@@ -297,5 +297,16 @@ const HANZI = [
   { c: '天', w: '天，天空的天', e: '🌤️', g: 3 },
 ];
 
+// Break-screen ideas (time guard, F-27 / F-66).
+const BREAK_IDEAS = [
+  { e: '🦘', t: 'Jump like a kangaroo 10 times!' },
+  { e: '🦩', t: 'Stand on one foot and count to 10!' },
+  { e: '🙆', t: 'Do 5 big stretches up to the sky!' },
+  { e: '💃', t: 'Put on a song and dance!' },
+  { e: '💧', t: 'Have a big drink of water!' },
+  { e: '📖', t: 'Read a picture book with Mum or Dad!' },
+  { e: '🔴', t: 'Find 3 red things in your house!' },
+];
+
 const PRAISE_ZH = ['真棒！', '太好了！', '答对了！', '你真厉害！', '好样的！'];
 const TRY_AGAIN_ZH = ['再试一次！', '差一点点，再想想！', '没关系，再找找！'];

@@ -67,6 +67,7 @@ const Sync = (() => {
       const l = out.games[id];
       if (!l || g.played > l.played) out.games[id] = { ...g };
       else if (l && g.played === l.played) out.games[id] = { ...l, level: prefsFromRemote ? g.level : l.level };
+      if (l?.mastered || g.mastered) out.games[id].mastered = true; // a crown is never lost
     }
     for (const [day, n] of Object.entries(remote.days || {})) out.days[day] = Math.max(out.days[day] || 0, n);
     for (const [day, d] of Object.entries(remote.daily || {})) {

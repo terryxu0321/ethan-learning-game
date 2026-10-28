@@ -36,7 +36,7 @@
 |---|---|---|---|---|---|
 | M1 | 点数到 20、一一对应、基数原则 | AC9MFN01 | Count It!, Number Explorer | ✅ | — |
 | M2 | 认读数字 0–20 | AC9MFN01 | Find the Number | ✅ | — |
-| M3 | **数感 subitising（≤5 一眼看出）** | AC9MFN02 | — | ⬜ | v0.2 Quick Look |
+| M3 | **数感 subitising（≤5 一眼看出）** | AC9MFN02 | Quick Look | ✅ | — |
 | M4 | 数序：前一个 / 后一个 | AC9MFN01 | What's Next? | ✅ | — |
 | M5 | 比较多少 | AC9MFN01 | More or Less | ✅ | — |
 | M6 | **10 以内分解组合（part-part-whole、凑 10）** | AC9MFN04 | — | ⬜ | v0.3 Make 10 |

@@ -460,6 +460,42 @@ const MATH_GAMES = [
     },
   },
   {
+    id: 'quick-look',
+    title: 'Quick Look',
+    zh: '一眼看出多少（速视）',
+    emoji: '👀',
+    color: 'pink',
+    maxLevel: 3,
+    intro: "Quick look! The dots will hide. Don't count — just look!",
+    // Dots flash briefly, then hide. Looking again is allowed but counts as a hint.
+    question(level) {
+      const n = level === 1 ? rnd(1, 3) : level === 2 ? rnd(1, 5) : rnd(5, 10);
+      const kind = level === 3 ? 'frame' : level === 1 || Math.random() < 0.5 ? 'dice' : 'scatter';
+      const showMs = level === 1 ? 2000 : 1500;
+      const q = {
+        key: `${n}`,
+        label: `${n} 个点`,
+        say: 'How many dots did you see?',
+        html: `<div class="quick">${dotsSVG(n, kind)}<div class="quick-cover">👀<small>Look again</small></div></div>`,
+        style: 'number',
+        choices: numberOptions(n, level === 1 ? 3 : 4, 1, 10).map(x => ({ html: x, value: x })),
+        answer: n,
+        after: `${n}!`,
+        onMount(el) {
+          const box = el.querySelector('.quick');
+          const flash = () => {
+            box.classList.add('showing');
+            setTimeout(() => box.classList.remove('showing'), showMs);
+          };
+          flash();
+          el.querySelector('.quick-cover').addEventListener('click', () => { q.peeked = true; flash(); });
+        },
+        onCorrect(el) { el.querySelector('.quick').classList.add('showing'); },
+      };
+      return q;
+    },
+  },
+  {
     id: 'more-less',
     title: 'More or Less',
     zh: '比较多少',
@@ -612,6 +648,34 @@ const MATH_GAMES = [
     },
   },
 ];
+
+// Dot patterns for Quick Look (subitising), in a 100×100 box.
+const DICE = {
+  1: [[50, 50]], 2: [[28, 28], [72, 72]], 3: [[25, 25], [50, 50], [75, 75]],
+  4: [[28, 28], [72, 28], [28, 72], [72, 72]], 5: [[25, 25], [75, 25], [50, 50], [25, 75], [75, 75]],
+  6: [[28, 22], [72, 22], [28, 50], [72, 50], [28, 78], [72, 78]],
+};
+
+function scatter(n) {
+  const pts = [];
+  for (let tries = 0; pts.length < n && tries < 500; tries++) {
+    const p = [rnd(14, 86), rnd(14, 86)];
+    if (pts.every(q => Math.hypot(p[0] - q[0], p[1] - q[1]) > 24)) pts.push(p);
+  }
+  return pts;
+}
+
+function dotsSVG(n, kind) {
+  if (kind === 'frame') {
+    // ten-frame: 2 rows of 5
+    const cells = Array.from({ length: 10 }, (_, i) => [12 + (i % 5) * 19, i < 5 ? 34 : 66]);
+    return `<svg class="dots frame" viewBox="0 0 100 100">${cells.map(([x, y], i) =>
+      `<rect x="${x - 9}" y="${y - 15}" width="18" height="30" rx="3" fill="none" stroke="#c9d6ea" stroke-width="1.5"/>${i < n ? `<circle cx="${x}" cy="${y}" r="7" fill="#ff5a5f"/>` : ''}`).join('')}</svg>`;
+  }
+  const pts = kind === 'dice' ? DICE[n] : scatter(n);
+  return `<svg class="dots" viewBox="0 0 100 100"><rect x="2" y="2" width="96" height="96" rx="14" fill="#fff" stroke="#c9d6ea" stroke-width="2"/>${pts.map(([x, y]) =>
+    `<circle cx="${x}" cy="${y}" r="9" fill="#3b9cff"/>`).join('')}</svg>`;
+}
 
 function fillAnswer(ans) {
   return el => {
@@ -1137,9 +1201,11 @@ const CHINESE_GAMES = [
 ];
 
 // Display order on the subject screens: foundations first, stretch content last.
+// This is also the unlock order: with sequential unlocking on, each game opens once the one before it has a crown.
+// Free-play explorers are always open.
 const GAME_ORDER = [
-  'abc-explore', 'letter-sounds', 'letter-find', 'case-match', 'rhyme', 'first-letter', 'my-name', 'trace', 'sight-words',
-  'number-explore', 'count', 'number-find', 'trace-numbers', 'whats-next', 'more-less', 'shapes', 'patterns', 'add',
+  'abc-explore', 'letter-find', 'case-match', 'my-name', 'rhyme', 'trace', 'letter-sounds', 'first-letter', 'sight-words',
+  'number-explore', 'count', 'shapes', 'number-find', 'quick-look', 'more-less', 'trace-numbers', 'patterns', 'whats-next', 'add',
   'school-day', 'school-smarts', 'feelings', 'dino-says',
   'hanzi-explore', 'hanzi-find', 'hanzi-match',
 ];

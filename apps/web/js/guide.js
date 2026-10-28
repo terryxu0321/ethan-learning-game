@@ -36,7 +36,7 @@ const SKILLS = {
 const GAME_PRD = {
   'abc-explore': 'F-01', 'letter-sounds': 'F-20', 'letter-find': 'F-02', 'case-match': 'F-03', 'rhyme': 'F-05',
   'first-letter': 'F-04 / F-21', 'my-name': 'F-08', 'trace': 'F-07 / F-34', 'sight-words': 'F-06 / F-24',
-  'number-explore': 'F-09', 'count': 'F-09', 'number-find': 'F-09', 'trace-numbers': 'F-29', 'whats-next': 'F-09',
+  'number-explore': 'F-09', 'count': 'F-09', 'quick-look': 'F-25', 'number-find': 'F-09', 'trace-numbers': 'F-29', 'whats-next': 'F-09',
   'more-less': 'F-09', 'shapes': 'F-09', 'patterns': 'F-09', 'add': 'F-09',
   'school-day': 'F-61', 'school-smarts': 'F-61', 'feelings': 'F-61', 'dino-says': 'F-61',
   'hanzi-explore': 'F-67', 'hanzi-find': 'F-67', 'hanzi-match': 'F-67',
@@ -359,5 +359,18 @@ const GUIDE = {
     everyday: ['看到路上的"出口""入口""大""小"标志时，让孩子读一读。'],
     mastered: '看到学过的字能说出意思，正确率 80% 以上。',
     watch: '如果孩子靠猜，回到 L1 或"找汉字"多听几次。',
+  },
+  'quick-look': {
+    skills: ['M3'],
+    goal: '不用一个一个数，一眼看出有几个（subitising，速视）。这是数感的基础，也是 NSW Kindergarten 的学习内容。',
+    levels: ['L1：1–3 个，骰子点型，显示 2 秒', 'L2：1–5 个，骰子或散点，显示 1.5 秒', 'L3：5–10 个，十格图（"5 和几"）'],
+    teach: [
+      '用骰子和多米诺玩"快闪"：盖住，掀开 1 秒再盖上，问"有几个？"',
+      '答完让孩子说说"你是怎么看出来的？"（"两个和两个，是 4"）。',
+      '十格图：一排是 5，看到"满一排 + 2 个"就是 7，不用从 1 开始数。',
+    ],
+    everyday: ['玩飞行棋、蛇梯棋时，掷骰子后不数点，直接说出数字。', '盘子里放几颗葡萄，快速看一眼说出几颗。'],
+    mastered: '一眼认出 1–5 的点型；看十格图能说出 10 以内的数。',
+    watch: '如果孩子总想点着数，说明还需要 L1 的小数量练习。"再看一次"可以用，但会计入提示。',
   },
 };

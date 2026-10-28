@@ -170,10 +170,82 @@ function showHome(greet) {
   on(s, '#parents', () => showParentGate());
 }
 
+/* ---------- progression: crowns & unlocking ---------- */
+
+// Games in a subject are ordered by difficulty (GAME_ORDER). A crown 👑 = mastered: a game played at its top
+// level with ≥ 80% right first time. With sequential unlocking on, a game opens once all games before it have crowns.
+const chainOf = subject => GAMES.filter(g => g.subject === subject && !g.free);
+const isMastered = def => !!Store.data.games[def.id]?.mastered;
+
+function isUnlocked(def) {
+  if (def.free || !Store.data.settings.sequential) return true;
+  const chain = chainOf(def.subject);
+  return chain.slice(0, chain.indexOf(def)).every(isMastered);
+}
+
+// The game to play next in a subject: the first open game without a crown.
+const nextInChain = subject => chainOf(subject).find(g => isUnlocked(g) && !isMastered(g));
+
 function levelStars(def) {
   if (def.free) return '<span class="gc-level free">Free play</span>';
+  if (isMastered(def)) return '<span class="gc-level crown">👑</span>';
   const lv = Store.game(def.id, def.maxLevel).level;
   return `<span class="gc-level">${'★'.repeat(lv)}${'☆'.repeat(def.maxLevel - lv)}</span>`;
+}
+
+/* ---------- time guard (F-27) ---------- */
+
+// A play session starts with the first game after a 30-minute gap. After settings.sessionMin minutes
+// the child gets a friendly break screen; a parent can add 5 minutes.
+const Guard = (() => {
+  const KEY = 'ethan-learning-game-session';
+  const GAP = 30 * 60000;
+  const read = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } };
+  const write = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* ignore */ } };
+  return {
+    touch() {
+      const now = Date.now();
+      let s = read();
+      if (!s || now - s.last > GAP) s = { start: now, last: now, extra: 0 };
+      s.last = now;
+      write(s);
+    },
+    over() {
+      const min = Store.data.settings.sessionMin;
+      const s = read();
+      if (!min || !s || Date.now() - s.last > GAP) return false;
+      return Date.now() - s.start > (min + s.extra) * 60000;
+    },
+    extend(minutes = 5) {
+      const s = read();
+      if (s) { s.extra += minutes; write(s); }
+    },
+  };
+})();
+
+function showBreak() {
+  const idea = pick(BREAK_IDEAS);
+  const s = screen(`
+    ${topbar('', 'Break time')}
+    <section class="reward">
+      <div class="mascot big sleepy">${DINO_SVG}</div>
+      <div class="reward-title">Time for a break! 😴</div>
+      <div class="break-idea"><span>${idea.e}</span>${idea.t}</div>
+      <div class="reward-btns">
+        <button class="btn btn-go" id="home">🏠 OK!</button>
+      </div>
+      <button class="btn btn-ghost btn-small" id="extend">👨‍👩‍👦 家长：再玩 5 分钟</button>
+    </section>`, 'center');
+  Voice.say(`Great learning today, ${name()}! Your brain needs a rest. Time for a break. ${idea.t}`);
+  on(s, '#home', () => showHome());
+  on(s, '#extend', () => {
+    const a = rnd(3, 9);
+    const b = rnd(3, 9);
+    if (Number(prompt(`家长验证：${a} × ${b} = ?`)) === a * b) {
+      Guard.extend(5);
+      showHome();
+    }
+  });
 }
 
 function showSubject(key, quiet) {
@@ -182,23 +254,39 @@ function showSubject(key, quiet) {
   const s = screen(`
     ${topbar('🏠', sub.title)}
     <section class="game-grid">
-      ${games.map(g => `
-        <button class="game-card c-${g.color}" data-game="${g.id}">
-          <span class="gc-emoji">${g.emoji}</span>
+      ${games.map(g => {
+        const open = isUnlocked(g);
+        const next = g === nextInChain(key);
+        return `
+        <button class="game-card c-${g.color} ${open ? '' : 'locked'} ${next ? 'gc-next' : ''}" data-game="${g.id}">
+          ${next ? '<span class="gc-badge">Next!</span>' : ''}
+          <span class="gc-emoji">${open ? g.emoji : '🔒'}</span>
           <span class="gc-title">${g.title}</span>
-          ${levelStars(g)}${g.stretch ? '<span class="gc-tag">Kindergarten+</span>' : ''}
-        </button>`).join('')}
+          ${open ? levelStars(g) : '<span class="gc-level free">Get a crown first</span>'}${g.stretch ? '<span class="gc-tag">Kindergarten+</span>' : ''}
+        </button>`;
+      }).join('')}
     </section>`, `subject s-${key}`);
   if (!quiet) Voice.say(sub.hello, { lang: sub.lang });
   on(s, '[data-back]', () => showHome());
-  on(s, '[data-game]', (e, el) => startGame(GAMES.find(g => g.id === el.dataset.game)));
+  on(s, '[data-game]', (e, el) => {
+    const def = GAMES.find(g => g.id === el.dataset.game);
+    if (isUnlocked(def)) return startGame(def);
+    const before = chainOf(key).find(g => !isMastered(g));
+    el.classList.remove('shake');
+    void el.offsetWidth;
+    el.classList.add('shake');
+    Voice.say(sub.lang ? `先在「${before.title}」拿到皇冠，就能玩这个了！` : `This one is locked. First get a crown in ${before.title}!`, { lang: sub.lang });
+  });
 }
 
 /* ---------- game engine ---------- */
 
 function startGame(def) {
+  if (Guard.over()) return showBreak();
+  Guard.touch();
+  const review = isMastered(def);
   const s = screen(`
-    ${topbar('⬅️', `${def.emoji} ${def.title}`)}
+    ${topbar('⬅️', `${def.emoji} ${def.title}${review ? ' 👑' : ''}`)}
     ${def.free ? '' : `<div class="progress"></div>`}
     <section class="stage"></section>
     ${def.free ? '' : `<button class="speak-btn" aria-label="Say it again">🔊</button>`}`, `game g-${def.color}`);
@@ -216,7 +304,8 @@ function startGame(def) {
     def,
     stage,
     level: Store.game(def.id, def.maxLevel).level,
-    rounds: def.rounds || Store.data.settings.rounds,
+    // crowned games become short review sessions (the learner model picks due items)
+    rounds: review ? 3 : def.rounds || Store.data.settings.rounds,
     i: 0,
     firstTry: 0,
     used: new Set(),
@@ -280,7 +369,7 @@ function nextRound(st, intro = false) {
   st.stage.innerHTML = `
     <div class="prompt">${q.html || ''}</div>
     <div class="choices choices--${q.style}">
-      ${q.choices.map((c, i) => `<button class="choice c${i % 6}" data-i="${i}">${c.html}</button>`).join('')}
+      ${q.choices.map((c, i) => `<button class="choice c${i % 6}" data-i="${i}"${c.value === q.answer ? ' data-right="1"' : ''}>${c.html}</button>`).join('')}
     </div>`;
   const promptEl = st.stage.querySelector('.prompt');
   q.onMount?.(promptEl, ctx);
@@ -288,7 +377,11 @@ function nextRound(st, intro = false) {
 
   let first = true;
   let solved = false;
-  st.stage.querySelectorAll('.choice').forEach(btn => btn.addEventListener('click', () => {
+  let wrong = 0;
+  const buttons = [...st.stage.querySelectorAll('.choice')];
+  const rightBtn = buttons.find(b => q.choices[+b.dataset.i].value === q.answer);
+  const repeat = q.speak || q.say;
+  buttons.forEach(btn => btn.addEventListener('click', () => {
     if (solved || btn.disabled) return;
     const c = q.choices[+btn.dataset.i];
     if (c.value === q.answer) {
@@ -297,19 +390,33 @@ function nextRound(st, intro = false) {
       st.stage.querySelectorAll('.choice').forEach(b => { if (b !== btn) b.classList.add('fade'); });
       q.onCorrect?.(promptEl);
       ctx.success(btn, `${praise(st.def)} ${q.after || ''}`);
-      ctx.done(first, q.key, q.label ?? q.key);
+      ctx.done(first && !q.peeked, q.key, q.label ?? q.key);
     } else {
+      // graduated hints (F-26): 1st miss → hear it again; 2nd → one fewer choice; 3rd → Dino shows the answer
       first = false;
+      wrong++;
       btn.disabled = true;
       btn.classList.add('wrong', 'shake');
       Sound.wrong();
       const again = pick(st.def.lang ? TRY_AGAIN_ZH : TRY_AGAIN);
-      Voice.say(c.say ? `${c.say}? ${again}` : again);
+      const others = buttons.filter(b => !b.disabled && b !== rightBtn);
+      if (wrong === 1) {
+        speakSteps(c.say ? `${c.say}? ${again}` : again, repeat);
+      } else if (wrong === 2 && others.length > 1) {
+        others[0].disabled = true;
+        others[0].classList.add('gone');
+        speakSteps(again, repeat);
+      } else {
+        others.forEach(b => { b.disabled = true; b.classList.add('gone'); });
+        rightBtn.classList.add('hint');
+        Voice.say(st.def.lang ? '是这一个！点一下吧。' : "Let's look together. It's this one! Tap it.");
+      }
     }
   }));
 }
 
 async function finishRound(st, first) {
+  Guard.touch();
   if (first) st.firstTry++;
   st.i++;
   renderProgress(st);
@@ -324,6 +431,12 @@ function finishGame(st) {
   g.correct += firstTry;
   g.total += rounds;
   const ratio = firstTry / rounds;
+  // crown: a good game at the top level
+  const crown = !g.mastered && st.level === def.maxLevel && ratio >= 0.8;
+  if (crown) {
+    g.mastered = true;
+    g.masteredAt = Store.dayKey();
+  }
   let levelMsg = '';
   if (ratio >= 0.8 && g.level < def.maxLevel) {
     g.level++;
@@ -339,22 +452,27 @@ function finishGame(st) {
   const isNew = !Store.data.stickers.includes(sticker.e);
   if (isNew) Store.data.stickers.push(sticker.e);
   Store.save();
-  showReward(def, rounds, sticker, isNew, levelMsg, g.level);
+  showReward(def, rounds, sticker, isNew, levelMsg, g.level, crown);
 }
 
-function showReward(def, stars, sticker, isNew, levelMsg, level) {
+function showReward(def, stars, sticker, isNew, levelMsg, level, crown) {
+  const next = crown ? nextInChain(def.subject) : null;
+  const tired = Guard.over();
   const s = screen(`
     ${topbar('', '')}
     <section class="reward">
       <div class="reward-title">You did it, ${esc(name())}! 🎉</div>
       <div class="reward-stars">${'⭐'.repeat(stars)}</div>
-      ${levelMsg === 'up' ? `<div class="levelup">Level up! ${'★'.repeat(level)}${'☆'.repeat(def.maxLevel - level)}</div>` : ''}
+      ${crown ? `<div class="crown-win">👑<span>You got a crown!</span></div>` : ''}
+      ${next ? `<div class="levelup">🔓 New game: ${next.emoji} ${next.title}</div>` : ''}
+      ${levelMsg === 'up' && !crown ? `<div class="levelup">Level up! ${'★'.repeat(level)}${'☆'.repeat(def.maxLevel - level)}</div>` : ''}
       <button class="gift" id="gift" aria-label="Open present">🎁</button>
       <div class="gift-label">Tap the present!</div>
       ${GUIDE[def.id] ? `<div class="parent-card">👨‍👩‍👦 陪玩小任务：${pick(GUIDE[def.id].everyday)}</div>` : ''}
       <div class="reward-btns">
-        <button class="btn btn-go" id="again">🔁 Again</button>
-        <button class="btn btn-blue" id="more">🎮 More games</button>
+        ${tired ? '<button class="btn btn-go" id="rest">😴 Break time</button>' : `
+        ${next ? `<button class="btn btn-go" id="next">▶ ${next.title}</button>` : '<button class="btn btn-go" id="again">🔁 Again</button>'}
+        <button class="btn btn-blue" id="more">🎮 More games</button>`}
         <button class="btn btn-ghost" id="home">🏠</button>
       </div>
     </section>`, 'center');
@@ -362,7 +480,11 @@ function showReward(def, stars, sticker, isNew, levelMsg, level) {
   bumpStars(stars);
   Sound.fanfare();
   confetti(s.querySelector('.reward-title'));
-  Voice.say(`You did it, ${name()}! You got ${stars} stars! ${levelMsg === 'up' ? 'Level up! ' : ''}Tap the present!`);
+  if (crown) setTimeout(() => confetti(s.querySelector('.crown-win')), 400);
+  const nextSay = next ? (def.lang ? '新游戏开放了！' : `New game unlocked: ${next.title}!`) : '';
+  Voice.say(crown
+    ? `Wow, ${name()}! You got a crown in ${def.title}! ${nextSay} Tap the present!`
+    : `You did it, ${name()}! You got ${stars} stars! ${levelMsg === 'up' ? 'Level up! ' : ''}Tap the present!`);
 
   const gift = s.querySelector('#gift');
   gift.addEventListener('click', () => {
@@ -378,6 +500,8 @@ function showReward(def, stars, sticker, isNew, levelMsg, level) {
     }, 450);
   });
   on(s, '#again', () => startGame(def));
+  on(s, '#next', () => startGame(next));
+  on(s, '#rest', () => showBreak());
   on(s, '#more', () => showSubject(def.subject, true));
   on(s, '#home', () => showHome());
 }
@@ -518,6 +642,8 @@ function reportHTML() {
       <div><b>${minutes}</b><span>本周分钟数</span></div>
       <div><b>${acc === null ? '—' : acc + '%'}</b><span>一次答对率${trend}</span></div>
     </div>
+    <p>👑 <b>已掌握 ${GAMES.filter(isMastered).length} 个游戏</b>${GAMES.filter(isMastered).length ? '：' + GAMES.filter(isMastered).map(g => `${g.emoji} ${g.title}`).join('、') : ''}
+      <br><span class="muted">下一个：${['english', 'math', 'kindy', 'chinese'].map(k => nextInChain(k)).filter(Boolean).map(g => `${g.emoji} ${g.title}`).join('、') || '全部完成 🎉'}</span></p>
     <h3>最近 7 天（分钟）</h3>
     <div class="week">${days.map(d => `
       <div class="day" title="${d.acc === null ? '' : '一次答对率 ' + d.acc + '%'}"><div class="bar ${d.min > 30 ? 'over' : ''}" style="height:${(d.min / maxMin) * 100}%"><span>${d.min || ''}</span></div><small>${d.label}</small></div>`).join('')}
@@ -704,13 +830,14 @@ function showParent() {
 
   const row = g => {
     const name = `<td><button class="guide-link" data-guide="${g.id}">${g.emoji} ${g.title} <span>📖</span></button><small>${g.zh}</small></td>`;
-    if (g.free) return `<tr>${name}<td colspan="3" class="muted">自由玩 · free play</td></tr>`;
+    if (g.free) return `<tr>${name}<td colspan="4" class="muted">自由玩 · free play</td></tr>`;
     const p = Store.data.games[g.id];
     const acc = p && p.total ? Math.round((p.correct / p.total) * 100) + '%' : '—';
     return `<tr>${name}
       <td><select class="lv" data-id="${g.id}" aria-label="Level">${Array.from({ length: g.maxLevel }, (_, i) =>
         `<option value="${i + 1}" ${(p ? p.level : 1) === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>/${g.maxLevel}</td>
-      <td>${p ? p.played : 0}</td><td>${acc}</td></tr>`;
+      <td>${p ? p.played : 0}</td><td>${acc}</td>
+      <td><input type="checkbox" class="crown-box" data-id="${g.id}" ${p?.mastered ? 'checked' : ''} aria-label="Mastered"></td></tr>`;
   };
 
   const s = screen(`
@@ -745,15 +872,15 @@ function showParent() {
       </div>
       <h3>每个游戏 Per game <small>（等级会根据表现自动升降，也可以手动调整 · levels adjust automatically or set them here）</small></h3>
       <table class="prog">
-        <thead><tr><th>游戏</th><th>等级</th><th>次数</th><th>一次答对率</th></tr></thead>
+        <thead><tr><th>游戏</th><th>等级</th><th>次数</th><th>一次答对率</th><th>👑</th></tr></thead>
         <tbody>
-          <tr class="sec"><td colspan="4">🔤 English 英文</td></tr>
+          <tr class="sec"><td colspan="5">🔤 English 英文</td></tr>
           ${GAMES.filter(g => g.subject === 'english').map(row).join('')}
-          <tr class="sec"><td colspan="4">🔢 Math 数学</td></tr>
+          <tr class="sec"><td colspan="5">🔢 Math 数学</td></tr>
           ${GAMES.filter(g => g.subject === 'math').map(row).join('')}
-          <tr class="sec"><td colspan="4">🎒 Kindy Ready 入学准备</td></tr>
+          <tr class="sec"><td colspan="5">🎒 Kindy Ready 入学准备</td></tr>
           ${GAMES.filter(g => g.subject === 'kindy').map(row).join('')}
-          <tr class="sec"><td colspan="4">🀄 中文</td></tr>
+          <tr class="sec"><td colspan="5">🀄 中文</td></tr>
           ${GAMES.filter(g => g.subject === 'chinese').map(row).join('')}
         </tbody>
       </table>
@@ -767,6 +894,11 @@ function showParent() {
       <label class="field">每个游戏题数 Questions per game
         <select id="set-rounds">${[3, 5, 8, 10].map(n => `<option ${n === set.rounds ? 'selected' : ''}>${n}</option>`).join('')}</select>
       </label>
+      <label class="field">每次玩多久后提醒休息 Break reminder
+        <select id="set-session">${[[0, '关闭'], [10, '10 分钟'], [15, '15 分钟（推荐）'], [20, '20 分钟'], [30, '30 分钟']].map(([v, t]) =>
+          `<option value="${v}" ${v === set.sessionMin ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      </label>
+      <label class="field check"><input type="checkbox" id="set-seq" ${set.sequential ? 'checked' : ''}> 按顺序解锁游戏（前一个拿到 👑 皇冠才开放下一个）</label>
       <label class="field check"><input type="checkbox" id="set-voice" ${set.voice ? 'checked' : ''}> 语音朗读 Voice</label>
       <label class="field check"><input type="checkbox" id="set-sfx" ${set.sfx ? 'checked' : ''}> 音效 Sound effects</label>
       <label class="field">语速 Speech speed <span id="rate-val">${set.rate}</span>
@@ -837,6 +969,13 @@ function showParent() {
   s.querySelector('#set-name').addEventListener('input', e => { Store.data.name = e.target.value.trim(); save(); });
   s.querySelector('#set-rounds').addEventListener('change', e => { set.rounds = +e.target.value; save(); });
   s.querySelector('#set-voice').addEventListener('change', e => { set.voice = e.target.checked; save(); });
+  s.querySelector('#set-session').addEventListener('change', e => { set.sessionMin = +e.target.value; save(); });
+  s.querySelector('#set-seq').addEventListener('change', e => { set.sequential = e.target.checked; save(); });
+  s.querySelectorAll('.crown-box').forEach(box => box.addEventListener('change', () => {
+    const def = GAMES.find(g => g.id === box.dataset.id);
+    Store.game(def.id, def.maxLevel).mastered = box.checked;
+    save();
+  }));
   s.querySelector('#set-sfx').addEventListener('change', e => { set.sfx = e.target.checked; save(); });
   s.querySelector('#set-rate').addEventListener('input', e => {
     set.rate = +e.target.value;

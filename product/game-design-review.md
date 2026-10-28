@@ -41,9 +41,23 @@
 ## 还缺的（按优先级）
 
 1. **拍音节**（语音意识，最低→典型）：比押韵更简单的"听"游戏。→ 下一个要做的英文游戏。
-2. **Quick Look 速视**（一眼看出 1–5，数学典型档）：PRD F-25。
+2. ~~Quick Look 速视~~ ✅ 已上线（F-25）。
 3. **Sound Blender 口头拼读**：在 Letter Sounds 达到 2 级后开放。
 4. **Make 10**：数学最高档，开学后再做。
+
+## 难度顺序与解锁（2026-10-28 起）
+
+每个科目里的游戏按难度排好（代码中的 `GAME_ORDER`，清单见 `curriculum/games.md`）。前面的游戏都拿到 👑 皇冠，才开放下一个；自由探索类游戏始终开放。
+
+- **English**：Find the Letter → Big & Little → Spell My Name → Rhyme Time → Trace Letters → Letter Sounds → First Letter → Sight Words（进阶）
+- **Math**：Count It! → Shapes → Find the Number → Quick Look → More or Less → Write Numbers → Patterns → What's Next? → Add & Take Away
+- **Kindy Ready**：My School Day → School Smarts → Feelings → Dino Says
+- **中文**：找汉字 → 字和图
+
+排序理由：先认字形（字母名、大小写），再"听"（押韵），再写，再学字母音和首音（需要前面的基础），最后读词。数学先数和形状，再数字符号、速视和比较，最后是规律、数序和加减。
+
+**皇冠规则**：在最高级一局一次答对 ≥ 80% → 👑。拿到皇冠的游戏变成"复习"（每局 3 题，优先出该复习的内容），不会消失。
+**家长控制**：家长页可以关闭"按顺序解锁"，或在游戏表格里勾选 👑，让孩子跳过已经会的游戏（Ethan 认读较好，Find the Letter、Big & Little 可以直接打勾）。
 
 ## 关于"等级"的使用建议
 

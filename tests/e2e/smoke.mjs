@@ -34,7 +34,7 @@ try {
   check(true, 'splash → home');
 
   // speed up: no voice, 3 rounds per game
-  await page.evaluate(() => { Store.data.settings.voice = false; Store.data.settings.rounds = 3; });
+  await page.evaluate(() => { Store.data.settings.voice = false; Store.data.settings.rounds = 3; Store.data.settings.sessionMin = 0; });
   const games = await page.evaluate(() => GAMES.map(g => ({ id: g.id, free: !!g.free, custom: !!g.custom, max: g.maxLevel || 1 })));
 
   for (const g of games) {
@@ -149,6 +149,51 @@ try {
   // parent can set a game's level
   await page.selectOption('select.lv[data-id="count"]', '3');
   check(await page.evaluate(() => Store.game('count').level) === 3, 'parent can set level');
+
+  // crowns & sequential unlocking: a perfect game at the top level gives a crown and opens the next game
+  const prog = await page.evaluate(() => {
+    Store.data.settings.sequential = true;
+    Object.values(Store.data.games).forEach(g => { g.mastered = false; });
+    const chain = chainOf('english');
+    const before = isUnlocked(chain[1]);
+    Store.game(chain[0].id, chain[0].maxLevel).level = chain[0].maxLevel;
+    return { first: chain[0].id, second: chain[1].id, before };
+  });
+  await page.evaluate(id => startGame(GAMES.find(g => g.id === id)), prog.first);
+  for (let r = 0; r < 3; r++) {
+    await page.waitForSelector('.choice');
+    const idx = await page.evaluate(() => {
+      const btns = [...document.querySelectorAll('.choice')];
+      return btns.findIndex(b => b.dataset.right === '1');
+    });
+    await page.click(`.choice[data-i="${idx}"]`, { force: true });
+    await page.waitForFunction(() => !document.querySelector('.choice.right'), null, { timeout: 8000 });
+  }
+  await page.waitForSelector('.crown-win', { timeout: 8000 });
+  const after = await page.evaluate(id => ({ crowned: isMastered(GAMES.find(g => g.id === id)) }), prog.first);
+  check(!prog.before && after.crowned && await page.isVisible('#next'), 'crown after a perfect top-level game unlocks the next game');
+  await page.click('#home');
+  await page.evaluate(() => showSubject('english', true));
+  check(await page.locator('.game-card.locked').count() > 0 && await page.isVisible('.gc-next'), 'locked games and the "Next" game show on the subject screen');
+
+  // graduated hints: three misses → the right answer is highlighted
+  await page.evaluate(() => { Store.game('letter-find').level = 2; startGame(GAMES.find(g => g.id === 'letter-find')); });
+  await page.waitForSelector('.choice');
+  for (let k = 0; k < 3; k++) {
+    const wrongIdx = await page.evaluate(() => [...document.querySelectorAll('.choice')].findIndex(b => b.dataset.right !== '1' && !b.disabled));
+    if (wrongIdx < 0) break;
+    await page.click(`.choice[data-i="${wrongIdx}"]`, { force: true });
+  }
+  check(await page.locator('.choice.hint').count() === 1, 'third miss highlights the right answer');
+
+  // time guard: an old session start shows the break screen
+  await page.evaluate(() => {
+    Store.data.settings.sessionMin = 10;
+    localStorage.setItem('ethan-learning-game-session', JSON.stringify({ start: Date.now() - 11 * 60000, last: Date.now(), extra: 0 }));
+    startGame(GAMES.find(g => g.id === 'count'));
+  });
+  check(await page.isVisible('.break-idea'), 'break screen after the session time limit');
+  await page.evaluate(() => { Store.data.settings.sessionMin = 0; showParent(); });
 
   // export → import round trip
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('#export')]);

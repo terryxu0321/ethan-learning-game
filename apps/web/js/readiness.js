@@ -38,7 +38,7 @@ const READINESS = [
         levels: ['唱数到约 10', '唱数到 20', '数到 30，从 20 以内倒数，说出前一个和后一个数'] },
       { id: 'counting', name: '点数与总数', code: 'MAE-RWN-01', games: ['count', 'number-explore'],
         levels: ['点数 5 个以内', '点数 10 个以内，知道最后一个数就是总数', '稳定点数 20 个以内'] },
-      { id: 'subitise', name: '一眼看出数量（速视）', code: 'MAE-RWN-01', games: [],
+      { id: 'subitise', name: '一眼看出数量（速视）', code: 'MAE-RWN-01', games: ['quick-look'],
         levels: ['不数就认出 3 以内', '认出 4–5 和骰子点型', '一眼认出 1–5 的各种排列'] },
       { id: 'numerals', name: '认读和书写数字', code: 'MAE-RWN-02', games: ['number-find', 'trace-numbers'],
         levels: ['认出 1–5', '认读 0–10，会写一部分', '读、写 0–20'] },
