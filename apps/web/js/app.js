@@ -414,6 +414,43 @@ function showStickers() {
 
 /* ---------- parents ---------- */
 
+/* ---------- multi-device sync (sync.js) ---------- */
+
+function renderSyncPanel(el) {
+  const draw = () => {
+    if (!el.isConnected) return;
+    const u = Sync.user;
+    const label = { off: '未开启', connecting: '连接中…', syncing: '同步中…', synced: '✅ 已同步', offline: '📴 离线（联网后自动同步）', error: '⚠️ 同步出错' }[Sync.status];
+    el.innerHTML = `
+      <h2>☁️ 多设备同步 Sync</h2>
+      ${u ? `
+        <p>已登录：<b>${esc(u.email || u.displayName || '')}</b> · 状态：${label}${Sync.lastSync ? ` · 上次同步 ${Sync.lastSync.toLocaleTimeString()}` : ''}</p>
+        ${Sync.status === 'error' ? `<p class="warn">${esc(Sync.lastError)}</p>` : ''}
+        <p class="muted">进度、学习报告数据、入学清单和字母音录音会在登录同一个 Google 账号的电脑、iPad、手机之间自动同步。离线时照常玩，联网后自动合并。</p>
+        <div class="btn-row">
+          <button class="btn btn-blue" id="sync-now">🔄 立即同步</button>
+          <button class="btn btn-ghost" id="sync-out">退出登录（本机数据保留）</button>
+        </div>` : `
+        <p>在每台设备上用<b>同一个 Google 账号</b>登录一次，进度就会在电脑、iPad、手机之间自动同步。数据保存在家长自己的 Firebase 项目（悉尼服务器），只有登录的家长能访问。</p>
+        ${Sync.status === 'error' ? `<p class="warn">登录失败：${esc(Sync.lastError)}</p>` : ''}
+        ${Sync.status === 'connecting' ? '<p class="muted">连接中…</p>' : ''}
+        <div class="btn-row"><button class="btn btn-blue" id="sync-in">🔐 用 Google 登录并同步</button></div>`}`;
+    el.querySelector('#sync-in')?.addEventListener('click', () => Sync.signIn());
+    el.querySelector('#sync-now')?.addEventListener('click', () => Sync.syncNow());
+    el.querySelector('#sync-out')?.addEventListener('click', () => Sync.signOut());
+  };
+  const off = Sync.onChange(kind => {
+    if (!el.isConnected) return off();
+    if (kind === 'data') {
+      // another device changed the data: refresh the whole parent page
+      const top = window.scrollY;
+      showParent();
+      window.scrollTo(0, top);
+    } else draw();
+  });
+  draw();
+}
+
 /* ---------- backup ---------- */
 
 async function exportProgress() {
@@ -672,6 +709,8 @@ function showParent() {
 
   const s = screen(`
     ${topbar('🏠', 'Parents 家长')}
+    <section class="panel" id="sync-panel"></section>
+
     <section class="panel report">
       <h2>📊 学习报告 Report</h2>
       ${reportHTML()}
@@ -768,13 +807,14 @@ function showParent() {
     </section>`, 'parent');
 
   on(s, '[data-back]', () => showHome());
-  const save = () => Store.save();
+  const save = () => Store.savePrefs();
   s.querySelectorAll('select.lv').forEach(sel => sel.addEventListener('change', () => {
     const def = GAMES.find(g => g.id === sel.dataset.id);
     Store.game(def.id, def.maxLevel).level = +sel.value;
     save();
   }));
   renderSoundStudio(s.querySelector('#sound-studio'));
+  renderSyncPanel(s.querySelector('#sync-panel'));
   s.querySelectorAll('[data-guide]').forEach(btn => btn.addEventListener('click', () => showGuide(btn.dataset.guide)));
   s.querySelectorAll('[data-ready]').forEach(btn => btn.addEventListener('click', () => {
     Store.data.readiness[btn.dataset.ready] = +btn.dataset.level;

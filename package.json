@@ -8,6 +8,7 @@
     "docs": "node scripts/build-parent-guide.mjs"
   },
   "devDependencies": {
+    "firebase": "10.12.2",
     "playwright": "^1.47.0"
   }
 }

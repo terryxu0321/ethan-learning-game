@@ -1,6 +1,7 @@
 // End-to-end smoke test: opens the app, plays every game at every level, and fails on any JS error.
 //   npm test   (needs `playwright` + a Chromium build: `npx playwright install chromium`)
 import { createRequire } from 'node:module';
+import { readFile } from 'node:fs/promises';
 import { serve } from './serve.mjs';
 
 const require = createRequire(import.meta.url);
@@ -154,6 +155,21 @@ try {
   await page.waitForFunction(() => Store.data.stars > 0, null, { timeout: 5000 });
   check(true, 'progress export → import restores data');
 
+  // sync: merging keeps practice from both devices, newest parent preferences win
+  const merged = await page.evaluate(() => {
+    const base = () => structuredClone(Store.defaults());
+    const a = base(); const b = base();
+    a.stars = 5; b.stars = 9; a.stickers = ['🦁']; b.stickers = ['🐯'];
+    a.items = { 'letter-find': { B: { n: 3, ok: 1, box: 0, last: '2026-10-27' } } };
+    b.items = { 'letter-find': { B: { n: 5, ok: 4, box: 2, last: '2026-10-28' }, C: { n: 1, ok: 1, box: 1, last: '2026-10-28' } } };
+    a.name = 'Old'; a.prefsUpdated = 1; b.name = 'New'; b.prefsUpdated = 2;
+    a.games = { count: { level: 2, played: 4, correct: 10, total: 20 } }; b.games = { count: { level: 1, played: 1, correct: 1, total: 5 } };
+    const m = Sync.merge(a, b);
+    return { stars: m.stars, stickers: m.stickers.length, B: m.items['letter-find'].B.n, C: !!m.items['letter-find'].C, name: m.name, played: m.games.count.played };
+  });
+  check(merged.stars === 9 && merged.stickers === 2 && merged.B === 5 && merged.C && merged.name === 'New' && merged.played === 4,
+    `sync merge keeps both devices' progress (${JSON.stringify(merged)})`);
+
   // letter-sound recording with a fake microphone; recording is then used in the game
   await page.waitForSelector('#sound-studio .rec');
   await page.click('#sound-studio .rec[data-l="S"]');
@@ -161,6 +177,20 @@ try {
   check(await page.evaluate(() => Phonics.has('S')), 'letter sound recorded and saved');
   await page.reload();
   check(await page.evaluate(async () => { await Phonics.ready; return Phonics.has('S'); }), 'recording survives reload');
+
+  // sync: with sync turned on, the Firebase SDK (served from node_modules instead of the CDN) loads and initialises
+  const sdkDir = new URL('../../node_modules/firebase/', import.meta.url);
+  await page.route('https://www.gstatic.com/firebasejs/10.12.2/*', async route => {
+    const file = route.request().url().split('/').pop();
+    route.fulfill({ contentType: 'text/javascript', body: await readFile(new URL(file, sdkDir)) });
+  });
+  await page.evaluate(() => localStorage.setItem('ethan-learning-game-sync', '1'));
+  await page.reload();
+  await page.waitForFunction(() => Sync.status === 'off' || Sync.status === 'error', null, { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(1500);
+  check(await page.evaluate(() => Sync.status !== 'error'), `firebase SDK loads (${await page.evaluate(() => Sync.status + ' ' + Sync.lastError)})`);
+  await page.evaluate(() => { localStorage.removeItem('ethan-learning-game-sync'); showParent(); });
+  check(await page.isVisible('#sync-in'), 'sync panel offers Google sign-in');
 } catch (e) {
   check(false, `unexpected failure: ${e.message}`);
 } finally {

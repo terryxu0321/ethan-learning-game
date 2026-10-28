@@ -76,14 +76,16 @@ const Phonics = (() => {
       if (current) current.pause();
     },
 
-    async save(l, blob) {
+    async save(l, blob, { fromSync = false } = {}) {
       cache[l] = blob;
       await write(s => s.put(blob, l)).catch(() => {});
+      if (!fromSync && typeof Sync !== 'undefined') Sync.soundSaved(l, blob);
     },
 
     async remove(l) {
       delete cache[l];
       await write(s => s.delete(l)).catch(() => {});
+      if (typeof Sync !== 'undefined') Sync.soundRemoved(l);
     },
 
     // Record from the microphone for `ms` milliseconds (onStart fires once the mic is live).

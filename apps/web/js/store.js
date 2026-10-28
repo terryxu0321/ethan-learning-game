@@ -31,6 +31,13 @@ const Store = {
     try {
       localStorage.setItem(this.KEY, JSON.stringify(this.data));
     } catch (e) { /* private mode etc. — keep playing without saving */ }
+    if (typeof Sync !== 'undefined') Sync.schedulePush();
+  },
+
+  // Parent-made changes (name, settings, levels, checklist): newest wins when devices sync.
+  savePrefs() {
+    this.data.prefsUpdated = Date.now();
+    this.save();
   },
 
   reset() {
